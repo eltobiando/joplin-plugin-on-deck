@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>On-Deck Reminders</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          sans-serif;
+        background-color: #f5f5f5;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+      }
+      .window-header {
+        height: 44px;
+        min-height: 44px;
+        flex-shrink: 0;
+        background-color: #2c3e50;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        user-select: none;
+      }
+      .window-title {
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .task-count {
+        background: #e74c3c;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        margin-left: 8px;
+      }
+      .content-area {
+        flex-grow: 1;
+        padding: 12px;
+        background-color: #f5f5f5;
+        overflow-y: auto;
+      }
+      .task-card {
+        background-color: #3498db;
+        color: white;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 10px;
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .task-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+      }
+      .task-card.overdue-high {
+        background-color: #e74c3c;
+      }
+      .task-card.overdue-medium {
+        background-color: #e67e22;
+      }
+      .task-card.overdue-low {
+        background-color: #3498db;
+      }
+      .task-card.upcoming {
+        background-color: #27ae60;
+      }
+      .task-info {
+        flex-grow: 1;
+        padding: 0 12px;
+        min-width: 0;
+      }
+      .task-title {
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .task-time {
+        font-size: 12px;
+        opacity: 0.9;
+      }
+      .task-actions {
+        display: flex;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+      .action-btn {
+        background-color: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background-color 0.15s ease;
+      }
+      .action-btn:hover {
+        background-color: rgba(255, 255, 255, 0.3);
+      }
+      .empty-state {
+        text-align: center;
+        color: #888;
+        padding: 60px 20px;
+        font-size: 14px;
+      }
+      .empty-state-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+      }
+      .window-footer {
+        height: 56px;
+        min-height: 56px;
+        flex-shrink: 0;
+        background-color: #fff;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0 16px;
+        gap: 10px;
+      }
+      .footer-btn {
+        background-color: #fff;
+        border: 1px solid #ccc;
+        padding: 8px 16px;
+        font-size: 13px;
+        color: #333;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.15s ease;
+      }
+      .footer-btn:hover {
+        background-color: #f0f0f0;
+        border-color: #999;
+      }
+      .footer-btn:active {
+        background-color: #e0e0e0;
+      }
+      .footer-btn.active {
+        background-color: #3498db;
+        color: white;
+        border-color: #2980b9;
+      }
+      .footer-btn.active:hover {
+        background-color: #2980b9;
+        border-color: #2471a3;
+      }
+      .footer-btn:disabled {
+        background-color: #fff;
+        border-color: #ccc;
+        color: #999;
+        cursor: default;
+      }
+      .refresh-icon {
+        display: inline-block;
+      }
+      .footer-btn.loading .refresh-icon {
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .task-list {
+        min-height: 100px;
+      }
+
+      /* Privacy overlay */
+      .privacy-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #2c3e50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      .privacy-overlay.hidden {
+        display: none;
+      }
+      .privacy-btn {
+        background: #3498db;
+        color: white;
+        border: none;
+        padding: 16px 48px;
+        font-size: 18px;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+      .privacy-btn:hover {
+        background: #2980b9;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="privacy-overlay" id="privacyOverlay">
+      <button class="privacy-btn" id="showTasksBtn">Show</button>
+    </div>
+    <div class="window-header">
+      <span class="window-title">
+        On-Deck Reminders
+        <span class="task-count" id="taskCount" style="display: none">0</span>
+      </span>
+    </div>
+    <div class="content-area">
+      <div class="task-list" id="taskList">
+        <div class="empty-state">
+          <div class="empty-state-icon">📋</div>
+          <div>Loading tasks...</div>
+        </div>
+      </div>
+    </div>
+    <div class="window-footer">
+      <button class="footer-btn" id="refreshBtn" title="Refresh tasks (F5)">
+        <span class="refresh-icon">↻</span> Refresh
+      </button>
+      <button
+        class="footer-btn"
+        id="lookAheadBtn"
+        title="Toggle look-ahead tasks"
+      >
+        Look Ahead: OFF
+      </button>
+      <button class="footer-btn" id="snoozeAllBtn">Snooze All</button>
+    </div>
+    <script src="window.js"></script>
+    <script src="webview.js"></script>
+  </body>
+</html>

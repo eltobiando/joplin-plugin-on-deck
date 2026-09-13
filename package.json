@@ -1,0 +1,72 @@
+{
+  "name": "joplin-plugin-on-deck",
+  "version": "1.14.0",
+  "description": "Shows a standalone window with tasks that are due or overdue. Auto-opens when tasks need attention. Supports opening notes and snoozing tasks.",
+  "scripts": {
+    "dist": "webpack --env joplin-plugin-config=buildMain && webpack --env joplin-plugin-config=buildExtraScripts && webpack --env joplin-plugin-config=createArchive",
+    "test": "vitest run",
+    "prepare": "npm run dist && husky",
+    "release": "commit-and-tag-version",
+    "update": "npm install -g generator-joplin && yo joplin --node-package-manager npm --update --force"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eltobiando/joplin-plugin-on-deck"
+  },
+  "license": "MIT",
+  "keywords": [
+    "joplin-plugin"
+  ],
+  "files": [
+    "publish"
+  ],
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@types/node": "^22.20.2",
+    "chalk": "^6.0.0",
+    "commit-and-tag-version": "^13.2.0",
+    "copy-webpack-plugin": "^14.0.0",
+    "fs-extra": "^11.4.0",
+    "glob": "^13.0.6",
+    "husky": "^9.1.7",
+    "jsdom": "^30.0.1",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.9.6",
+    "tar": "^7.5.22",
+    "ts-loader": "^9.6.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.0",
+    "webpack": "^5.110.3",
+    "webpack-cli": "^7.2.3"
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx,ts,tsx,css,scss,md,json,yml,yaml,html}": [
+      "prettier --write"
+    ]
+  },
+  "commit-and-tag-version": {
+    "packageFiles": [
+      {
+        "filename": "src/manifest.json",
+        "type": "json"
+      },
+      {
+        "filename": "package.json",
+        "type": "json"
+      }
+    ],
+    "bumpFiles": [
+      {
+        "filename": "src/manifest.json",
+        "type": "json"
+      },
+      {
+        "filename": "package.json",
+        "type": "json"
+      }
+    ],
+    "infile": "CHANGELOG.md",
+    "tagPrefix": "v"
+  }
+}

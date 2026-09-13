@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#34495e"/>
+      <stop offset="1" stop-color="#22303f"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="url(#bg)"/>
+  <!-- task cards, below each other; first card highlighted -->
+  <rect x="116" y="76" width="280" height="104" rx="20" fill="#e74c3c"/>
+  <rect x="116" y="204" width="280" height="104" rx="20" fill="#ffffff"/>
+  <rect x="116" y="332" width="280" height="104" rx="20" fill="#ffffff"/>
+  <!-- card 1 content -->
+  <rect x="148" y="104" width="120" height="16" rx="8" fill="#ffffff"/>
+  <rect x="148" y="138" width="176" height="10" rx="5" fill="#f5b7b1"/>
+  <!-- card 2 content -->
+  <rect x="148" y="232" width="144" height="16" rx="8" fill="#2c3e50"/>
+  <rect x="148" y="266" width="132" height="10" rx="5" fill="#b0bec5"/>
+  <!-- card 3 content -->
+  <rect x="148" y="360" width="104" height="16" rx="8" fill="#2c3e50"/>
+  <rect x="148" y="394" width="156" height="10" rx="5" fill="#b0bec5"/>
+</svg>

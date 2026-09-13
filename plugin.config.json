@@ -1,0 +1,7 @@
+{
+	"extraScripts": [
+		"dialog/window/window.ts",
+		"dialog/window/webview.ts",
+		"mobile-webview.ts"
+	]
+}
