@@ -9,8 +9,8 @@ import {
 } from "./types";
 import { ReminderManager } from "./ReminderManager";
 
-export const DEFAULT_WINDOW_WIDTH = 620;
-export const DEFAULT_WINDOW_HEIGHT = 500;
+export const DEFAULT_WINDOW_WIDTH = 715;
+export const DEFAULT_WINDOW_HEIGHT = 520;
 
 export class ReminderWindow {
   private win: Window | undefined = undefined;

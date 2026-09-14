@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import joplinMock from "./mocks/api";
 import { ReminderManager } from "../src/ReminderManager";
-import { ReminderWindow } from "../src/ReminderWindow";
+import {
+  DEFAULT_WINDOW_HEIGHT,
+  DEFAULT_WINDOW_WIDTH,
+  ReminderWindow,
+} from "../src/ReminderWindow";
 import type { TaskList, WindowPosition } from "../src/types";
 
 // Fake window returned by window.open()
@@ -316,8 +320,8 @@ describe("ReminderWindow message handling, settings cache and position", () => {
     expect(features[1]).not.toContain("left=");
     expect(features[1]).not.toContain("top=");
     // Degenerate (locked-screen) dimensions: replaced by the defaults
-    expect(features[2]).toContain("width=620");
-    expect(features[2]).toContain("height=500");
+    expect(features[2]).toContain(`width=${DEFAULT_WINDOW_WIDTH}`);
+    expect(features[2]).toContain(`height=${DEFAULT_WINDOW_HEIGHT}`);
   });
 
   it("routes openNote / snoozeTask / refresh / requestSettings to the manager and the window", async () => {
