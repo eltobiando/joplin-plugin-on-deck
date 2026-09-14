@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.15.1](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.15.0...v1.15.1) (2026-09-14)
+
+### Bug Fixes
+
+* restore default window size regressed in c541e3b ([5f0a040](https://github.com/eltobiando/joplin-plugin-on-deck/commit/5f0a040be4c529b86a19f7ef2dc7ae7858d78f4a))
 ## 1.15.0 (2026-09-13)
 
 ### Features
