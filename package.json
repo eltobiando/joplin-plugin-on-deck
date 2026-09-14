@@ -41,7 +41,7 @@
     "webpack-cli": "^7.2.3"
   },
   "lint-staged": {
-    "src/**/*.{js,jsx,ts,tsx,css,scss,md,json,yml,yaml,html}": [
+    "**/*.{js,jsx,ts,tsx,css,scss,md,json,yml,yaml,html}": [
       "prettier --write"
     ]
   },

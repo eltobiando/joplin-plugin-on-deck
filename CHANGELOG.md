@@ -6,23 +6,26 @@ All notable changes to this project will be documented in this file. See [commit
 
 ### Bug Fixes
 
-* restore default window size regressed in c541e3b ([5f0a040](https://github.com/eltobiando/joplin-plugin-on-deck/commit/5f0a040be4c529b86a19f7ef2dc7ae7858d78f4a))
+- restore default window size regressed in c541e3b ([5f0a040](https://github.com/eltobiando/joplin-plugin-on-deck/commit/5f0a040be4c529b86a19f7ef2dc7ae7858d78f4a))
+
 ## 1.15.0 (2026-09-13)
 
 ### Features
 
-* branch consolidation ([c4ffe46](https://github.com/eltobiando/joplin-plugin-on-deck/commit/c4ffe464d579aa8dac1cf7509e83eb80cbe84fc2))
+- branch consolidation ([c4ffe46](https://github.com/eltobiando/joplin-plugin-on-deck/commit/c4ffe464d579aa8dac1cf7509e83eb80cbe84fc2))
+
 ## [1.14.0](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.13.0...v1.14.0) (2026-09-13)
 
 ### Features
 
-* add plugin icon and screenshots ([a688858](https://github.com/eltobiando/joplin-plugin-on-deck/commit/a688858d1e3a24f91502b3fe5d5c046d63792420))
-* default the privacy overlay setting to off ([706170b](https://github.com/eltobiando/joplin-plugin-on-deck/commit/706170b741e8b44c1c3ed9f98b9730868c017bea))
+- add plugin icon and screenshots ([a688858](https://github.com/eltobiando/joplin-plugin-on-deck/commit/a688858d1e3a24f91502b3fe5d5c046d63792420))
+- default the privacy overlay setting to off ([706170b](https://github.com/eltobiando/joplin-plugin-on-deck/commit/706170b741e8b44c1c3ed9f98b9730868c017bea))
 
 ### Bug Fixes
 
-* add missing refresh button loading animation on mobile ([8d4b79f](https://github.com/eltobiando/joplin-plugin-on-deck/commit/8d4b79f01b3ffbb07731513218f4a3f0c5a010a8))
-* address code review findings (5 bug fixes, cleanup, regression tests) ([c541e3b](https://github.com/eltobiando/joplin-plugin-on-deck/commit/c541e3bf912912a88c0b2fbb822dcf3b2fdec63b))
+- add missing refresh button loading animation on mobile ([8d4b79f](https://github.com/eltobiando/joplin-plugin-on-deck/commit/8d4b79f01b3ffbb07731513218f4a3f0c5a010a8))
+- address code review findings (5 bug fixes, cleanup, regression tests) ([c541e3b](https://github.com/eltobiando/joplin-plugin-on-deck/commit/c541e3bf912912a88c0b2fbb822dcf3b2fdec63b))
+
 ## [1.13.0](///compare/v1.12.1...v1.13.0) (2026-09-12)
 
 ### Features
