@@ -109,6 +109,13 @@ export class ReminderManager {
    * Fetch all due tasks (todo_due <= deadline, not completed)
    * Deadline = now + lookAheadDays (configurable)
    * Uses a single paginated search query with fields param to get todo_due directly.
+   *
+   * The due:19700201 term is a floor on todo_due (Joplin's due: filter means
+   * "todo_due >= value"), so only todos with a real due date are returned.
+   * order_by todo_due (ASC) delivers them most-overdue-first, so pagination
+   * stops at the first row due after the deadline — every later row is further
+   * in the future. This shrinks the fetch from the full todo list (~20 pages
+   * for 2000+ todos) to the rows actually due (~1-3 pages).
    */
   private async fetchDueTasks(): Promise<TaskList> {
     const now = Date.now();
@@ -129,28 +136,35 @@ export class ReminderManager {
     const deadline = now + effectiveDays * 24 * 60 * 60 * 1000;
 
     try {
-      // Single paginated search — returns todo_due directly when fields is specified
-      // Filter in JS since Joplin search doesn't support "due <= X" directly
       const allTasks: Task[] = [];
       let page = 1;
       let hasMore = true;
+      let terminatedEarly = false;
+      let pagesFetched = 0;
+      let rowsFetched = 0;
+      const startedAt = Date.now();
 
       while (hasMore) {
         const searchResults = await joplin.data.get(["search"], {
-          query: `type:todo iscompleted:0`,
+          query: `type:todo iscompleted:0 due:19700201`,
           limit: 100,
           page,
+          order_by: "todo_due",
+          order_dir: "ASC",
           fields: "id,title,todo_due,parent_id,is_conflict,deleted_time",
         });
+        pagesFetched++;
         const items = searchResults.items || [];
 
         for (const note of items) {
-          if (
-            note.todo_due > 0 &&
-            note.todo_due <= deadline &&
-            !note.deleted_time &&
-            !note.is_conflict
-          ) {
+          rowsFetched++;
+          if (note.todo_due > deadline) {
+            // Rows arrive sorted by todo_due ASC: everything after this row
+            // is due even later, so there is nothing left to fetch
+            terminatedEarly = true;
+            break;
+          }
+          if (note.todo_due > 0 && !note.deleted_time && !note.is_conflict) {
             allTasks.push({
               id: note.id,
               title: note.title,
@@ -161,9 +175,18 @@ export class ReminderManager {
           }
         }
 
+        if (terminatedEarly) break;
         hasMore = searchResults.has_more && items.length > 0;
         page++;
       }
+
+      // Benchmark log — uncomment to profile search performance
+      // (the counters above are kept so re-enabling is a single edit):
+      // console.log(
+      //   `[On-Deck] search: ${Date.now() - startedAt}ms, ${pagesFetched} page(s), ` +
+      //     `${rowsFetched} rows${terminatedEarly ? " (early stop)" : ""}, ` +
+      //     `${allTasks.length} due`
+      // );
 
       allTasks.sort((a, b) => a.todo_due - b.todo_due);
 
