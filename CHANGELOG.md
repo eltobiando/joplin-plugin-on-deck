@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.17.0](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.16.0...v1.17.0) (2026-09-18)
+
+### Features
+
+- show the target time each snooze preset lands on ([a808d1d](https://github.com/eltobiando/joplin-plugin-on-deck/commit/a808d1dde98e2787371cfb43343c2700a5c06ae4))
+
 ## [1.16.0](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.15.1...v1.16.0) (2026-09-18)
 
 ### Features
