@@ -52,6 +52,7 @@ export type PluginToWindowMessage =
       lastCustomSnoozeDays: number | null;
       dateFormat?: string;
       timeFormat?: string;
+      locale?: string;
     }
   | {
       type: "settingsUpdated";

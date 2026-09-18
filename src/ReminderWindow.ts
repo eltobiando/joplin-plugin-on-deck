@@ -26,6 +26,7 @@ export class ReminderWindow {
     snoozeUntilTomorrowMinute: number;
     dateFormat: string;
     timeFormat: string;
+    locale: string;
     cachedAt: number;
   } | null = null;
   private readonly SETTINGS_TTL_MS = 30 * 1000; // 30 seconds
@@ -347,6 +348,7 @@ export class ReminderWindow {
     // Joplin built-in display formats (General settings)
     let dateFormat = "DD/MM/YYYY";
     let timeFormat = "HH:mm";
+    let locale = "en";
     try {
       showLookAhead = (await joplin.settings.value("showLookAhead")) as boolean;
       snoozeUntilTomorrowHour =
@@ -359,9 +361,11 @@ export class ReminderWindow {
       const globals = (await joplin.settings.globalValues([
         "dateFormat",
         "timeFormat",
+        "locale",
       ])) as string[];
       if (typeof globals[0] === "string" && globals[0]) dateFormat = globals[0];
       if (typeof globals[1] === "string" && globals[1]) timeFormat = globals[1];
+      if (typeof globals[2] === "string" && globals[2]) locale = globals[2];
     } catch {
       // defaults
     }
@@ -371,6 +375,7 @@ export class ReminderWindow {
       snoozeUntilTomorrowMinute,
       dateFormat,
       timeFormat,
+      locale,
       cachedAt: now,
     };
     return this.settingsCache;
@@ -393,6 +398,7 @@ export class ReminderWindow {
       lastCustomSnoozeDays: this.reminderManager.getLastCustomSnoozeDays(),
       dateFormat: settings.dateFormat,
       timeFormat: settings.timeFormat,
+      locale: settings.locale,
     };
 
     try {

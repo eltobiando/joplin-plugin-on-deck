@@ -7,6 +7,13 @@ import type {
   PluginToWindowMessage,
   WindowToPluginMessage,
 } from "./types";
+import {
+  dateTimeTokens,
+  formatClockTime,
+  formatDayTarget,
+  presetTargetTime,
+  replaceTokens,
+} from "./snoozeLabels";
 
 declare const webviewApi: {
   postMessage(message: WindowToPluginMessage): Promise<unknown>;
@@ -22,6 +29,11 @@ let mSnoozeMinute: number = 0;
 let mLastCustomSnoozeDays: number | null = null;
 let mPendingSettings: Promise<void> | null = null;
 let mHasLoaded = false; // true after first updateTasks arrives
+
+// Joplin date/time display formats (General settings, updated via IPC)
+let mDateFormat: string = "DD/MM/YYYY";
+let mTimeFormat: string = "HH:mm";
+let mLocale: string = "en";
 
 function mEscape(text: string): string {
   return text
@@ -56,6 +68,15 @@ function mFormatTime(timestamp: number): string {
   return `${days} day${days !== 1 ? "s" : ""} ago`;
 }
 
+// Format absolute due date & time using Joplin's date/time format settings
+// (mirrors the desktop webview's formatDateTime)
+function mFormatDateTime(timestamp: number): string {
+  return replaceTokens(
+    `${mDateFormat} ${mTimeFormat}`,
+    dateTimeTokens(new Date(timestamp)),
+  );
+}
+
 function mRenderTasks(tasks: Task[]) {
   const taskListEl = document.getElementById("taskList");
   const taskCountEl = document.getElementById("taskCount");
@@ -86,10 +107,10 @@ function mRenderTasks(tasks: Task[]) {
     .map((task) => {
       const urgencyClass = task.urgency || "overdue-low";
       return (
-        `<div class="task-card ${urgencyClass}" data-task-id="${task.id}">` +
+        `<div class="task-card ${urgencyClass}" data-task-id="${task.id}" data-due="${task.todo_due}">` +
         `<div class="task-info">` +
         `<div class="task-title" title="${mEscape(task.title)}">${mEscape(task.title)}</div>` +
-        `<div class="task-time">Due: ${mFormatTime(task.todo_due)}</div>` +
+        `<div class="task-time">Due: ${mFormatTime(task.todo_due)} (${mFormatDateTime(task.todo_due)})</div>` +
         `</div>` +
         `<div class="task-actions">` +
         `<button class="action-btn" data-action="snooze" data-task-id="${task.id}" title="Snooze">&#9201;</button>` +
@@ -171,6 +192,7 @@ function mAttachFooter() {
 function mUpdateLookAhead(active: boolean) {
   const btn = document.getElementById("lookAheadBtn");
   if (!btn) return;
+  btn.textContent = active ? "Look Ahead: ON" : "Look Ahead: OFF";
   if (active) btn.classList.add("active");
   else btn.classList.remove("active");
 }
@@ -200,18 +222,50 @@ function mShowSnooze(taskId: string | null, taskIds?: string[]) {
     const existing = document.getElementById("snoozeDropdown");
     if (existing) existing.remove();
 
-    const presets: { label: string; value: SnoozePreset }[] = [
-      { label: "15 minutes", value: "15min" },
-      { label: "30 minutes", value: "30min" },
-      { label: "1 hour", value: "1hr" },
-      { label: "2 hours", value: "2hr" },
-      { label: "3 hours", value: "3hr" },
+    // Target date/time for each preset — mirrors
+    // ReminderManager.calculateSnoozeTime: instant presets are now + offset,
+    // day presets land on now + N days at the task's original clock time.
+    // In bulk mode there is no single task due time, so day presets keep
+    // the generic "(same time)".
+    let taskDue: number | null = null;
+    if (taskId) {
+      const dueAttr = document
+        .querySelector(`.task-card[data-task-id="${taskId}"]`)
+        ?.getAttribute("data-due");
+      const due = dueAttr ? parseInt(dueAttr, 10) : NaN;
+      if (Number.isFinite(due) && due > 0) taskDue = due;
+    }
+    const now = Date.now();
+    const instantTime = (preset: SnoozePreset): string | undefined => {
+      const ts = presetTargetTime(now, preset, taskDue);
+      return ts === null ? undefined : `(${formatClockTime(ts, mTimeFormat)})`;
+    };
+    const dayTime = (preset: SnoozePreset): string => {
+      const ts = presetTargetTime(now, preset, taskDue);
+      if (ts === null) return "(same time)";
+      return `(${formatDayTarget(ts, mTimeFormat, mLocale)})`;
+    };
+
+    // Name and target time in separate spans so the times line up in a
+    // column (tab-like spacing) across all rows
+    const presets: {
+      name: string;
+      time?: string;
+      value: SnoozePreset;
+      day?: boolean;
+    }[] = [
+      { name: "15 minutes", time: instantTime("15min"), value: "15min" },
+      { name: "30 minutes", time: instantTime("30min"), value: "30min" },
+      { name: "1 hour", time: instantTime("1hr"), value: "1hr" },
+      { name: "2 hours", time: instantTime("2hr"), value: "2hr" },
+      { name: "3 hours", time: instantTime("3hr"), value: "3hr" },
       {
-        label: `Tomorrow at ${mSnoozeHour}:${mSnoozeMinute.toString().padStart(2, "0")}`,
+        name: `Tomorrow at ${mSnoozeHour}:${mSnoozeMinute.toString().padStart(2, "0")}`,
         value: "tomorrow",
       },
-      { label: "1 day (same time)", value: "1day" },
-      { label: "7 days (same time)", value: "7day" },
+      { name: "1 day", time: dayTime("1day"), value: "1day", day: true },
+      { name: "3 days", time: dayTime("3day"), value: "3day", day: true },
+      { name: "7 days", time: dayTime("7day"), value: "7day", day: true },
     ];
 
     const dropdown = document.createElement("div");
@@ -222,7 +276,7 @@ function mShowSnooze(taskId: string | null, taskIds?: string[]) {
       presets
         .map(
           (p) =>
-            `<div class="snooze-option" data-value="${p.value}">${p.label}</div>`,
+            `<div class="snooze-option" data-value="${p.value}"><span class="snooze-option-name${p.day ? " snooze-option-name--day" : ""}">${p.name}</span> <span class="snooze-option-time">${p.time ?? ""}</span></div>`,
         )
         .join("") +
       `</div>` +
@@ -240,6 +294,16 @@ function mShowSnooze(taskId: string | null, taskIds?: string[]) {
       `</div>` +
       `<button class="snooze-cancel">Cancel</button>`;
 
+    // Lock body scroll while the dropdown is open. Without this, Android's
+    // WebView routes the touch-drag to the scrollable task list behind the
+    // fixed modal, so the (now 9-item) preset list can't be scrolled.
+    const syncBodyScrollLock = () => {
+      document.body.classList.toggle(
+        "snooze-open",
+        !!document.getElementById("snoozeDropdown"),
+      );
+    };
+
     // Shared removal: cleans up both the DOM element and the outside-click listener
     let onClickOutside: ((e: MouseEvent) => void) | null = null;
     const removeDropdown = () => {
@@ -248,6 +312,7 @@ function mShowSnooze(taskId: string | null, taskIds?: string[]) {
         onClickOutside = null;
       }
       if (dropdown.parentNode) dropdown.remove();
+      syncBodyScrollLock();
     };
 
     dropdown.querySelectorAll(".snooze-option").forEach((option) => {
@@ -312,6 +377,7 @@ function mShowSnooze(taskId: string | null, taskIds?: string[]) {
     }, 10);
 
     document.body.appendChild(dropdown);
+    syncBodyScrollLock();
   });
 }
 
@@ -333,6 +399,15 @@ webviewApi.onMessage((event: any) => {
     }
     if (typeof message.lastCustomSnoozeDays === "number") {
       mLastCustomSnoozeDays = message.lastCustomSnoozeDays;
+    }
+    if (typeof message.dateFormat === "string" && message.dateFormat) {
+      mDateFormat = message.dateFormat;
+    }
+    if (typeof message.timeFormat === "string" && message.timeFormat) {
+      mTimeFormat = message.timeFormat;
+    }
+    if (typeof message.locale === "string" && message.locale) {
+      mLocale = message.locale;
     }
     mSetRefreshLoading(false);
     mRenderTasks(message.tasks.tasks);

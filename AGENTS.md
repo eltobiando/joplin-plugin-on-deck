@@ -28,6 +28,7 @@ src/
   ReminderManager.ts    # Business logic: fetch, snooze, urgency scoring
   ReminderWindow.ts     # Window manager: open/close, postMessage IPC, position persistence
   serialExecutor.ts     # Shared helper: serialize async updates, failure-proof chain (unit tested)
+  snoozeLabels.ts       # Shared snooze preset maps + label/format helpers (web-safe; used by both UIs + manager)
   dialog/window/
     index.html          # Standalone window HTML (inline CSS, no framework)
     window.ts           # Window bootstrap: webviewApi shim, footer buttons, privacy overlay
@@ -54,14 +55,15 @@ Messages are typed via `PluginToWindowMessage` and `WindowToPluginMessage` in `t
 
 ## Key Conventions
 
+- **Desktop is the leading view, mobile should follow it.** — the desktop standalone window is the primary reference for behavior, labels, and formatting. Implement changes there first, then mirror them in the mobile panel, unless a platform constraint prevents it
 - **Releases via `npm run release`** — `commit-and-tag-version` bumps `version` in `src/manifest.json` and `package.json` (feat → minor, fix → patch, breaking → major), updates `CHANGELOG.md`, commits `chore(release): X.Y.Z`, and tags `vX.Y.Z`. No manual per-commit version bumps. Run `npm run dist` after a release before shipping the `.jpl`
 - **Build before commit** — run `npm run dist` to produce `publish/joplin-plugin-on-deck.jpl`
 - **No React/Vue** — pure DOM manipulation with inline event handlers
 - **No strict mode** — `tsconfig.json` does not set `strict` (defaults to off, generator style)
 - **Target ES2017**, module CommonJS
 - **Extra scripts** (`dialog/window/window.ts`, `dialog/window/webview.ts`, `mobile-webview.ts`) are compiled as `target: "web"` by webpack — they run in browser context, not Node
-- **Snooze presets** — the `SnoozePreset` union in `types.ts` is the single source of truth, imported (type-only) by `ReminderManager.ts` (time mapping) and both webview UIs (labels). The mobile UI intentionally offers a different set (omits `3day`) — when adding a preset, keep the union, the manager's mapping, and the relevant UI label lists in sync
-- **Window/webview types are shared** — `types.ts` is type-only, so web-target scripts use `import type { ... } from "…/types"` (erased at compile time, no runtime import)
+- **Snooze presets** — `src/snoozeLabels.ts` is the single source of truth for the preset time mapping (`INSTANT_PRESET_OFFSETS`, `DAY_PRESET_DAYS`) and the shared label/format helpers, imported by `ReminderManager.ts` and both webview UIs; the `SnoozePreset` union in `types.ts` is the type source of truth. Desktop and mobile show the same preset list — when adding a preset, keep the union, the snoozeLabels maps, and both UI label lists in sync
+- **Window/webview types are shared** — `types.ts` is type-only, so web-target scripts use `import type { ... } from "…/types"` (erased at compile time, no runtime import). `snoozeLabels.ts` is the one shared _runtime_ module — web-safe (no Node/Joplin imports) — imported by both webview bundles and `ReminderManager.ts`
 - **Search-based query** — uses `joplin.data.get(['search'], { query: 'type:todo iscompleted:0', fields: '...' })` with pagination (never N+1)
 - **Commit messages** — Conventional Commits: `feat:`, `fix:`, `perf:`, `refactor:`, `chore:` (lowercase, imperative, no trailing period). `feat:` and `fix:` drive the changelog and version bumps
 

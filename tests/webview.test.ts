@@ -115,4 +115,115 @@ describe("dialog/window/webview", () => {
       vi.useRealTimers();
     }
   });
+
+  it("snooze dropdown: instant presets show now+offset, day presets the task's due time", async () => {
+    sendUpdateTasks([t1]);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 18, 9, 0, 0)); // local 09:00
+    try {
+      (
+        document.querySelector(
+          '.action-btn[data-action="snooze"]',
+        ) as HTMLElement
+      ).click();
+      // fetchSettings resolves via its 2s timeout (no settingsUpdated arrives)
+      await vi.advanceTimersByTimeAsync(2000);
+      const dropdown = document.getElementById("snoozeDropdown");
+      expect(dropdown).not.toBeNull();
+      const label = (value: string) =>
+        dropdown!
+          .querySelector(`.snooze-option[data-value="${value}"]`)!
+          .textContent!.trim();
+
+      expect(label("15min")).toBe("15 minutes (09:15)");
+      expect(label("1hr")).toBe("1 hour (10:00)");
+      expect(label("3hr")).toBe("3 hours (12:00)");
+
+      // Day presets land on now + N days at the task's original clock time;
+      // with the fake clock at Fri 2026-09-18 the dates are deterministic
+      const d = new Date(t1.todo_due);
+      const dueTime = `${d.getHours().toString().padStart(2, "0")}:${d
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`;
+      expect(label("1day")).toBe(`1 day (19. ${dueTime} Saturday)`);
+      expect(label("3day")).toBe(`3 days (21. ${dueTime} Monday)`);
+      expect(label("7day")).toBe(`7 days (25. ${dueTime} Friday)`);
+
+      // "Tomorrow" already carries the configured time
+      expect(label("tomorrow")).toBe("Tomorrow at 9:00");
+
+      // Tab-like layout: name and target time are separate spans, so the
+      // times align in a column
+      const opt = dropdown!.querySelector('.snooze-option[data-value="3hr"]')!;
+      expect(opt.querySelector(".snooze-option-name")!.textContent).toBe(
+        "3 hours",
+      );
+      expect(opt.querySelector(".snooze-option-time")!.textContent).toBe(
+        "(12:00)",
+      );
+    } finally {
+      document.getElementById("snoozeDropdown")?.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it("snooze dropdown: day presets stay (same time) when snoozing several tasks", async () => {
+    sendUpdateTasks([t1, t2]);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 18, 9, 0, 0));
+    try {
+      (window as any).showSnoozeDropdown(null, ["t1", "t2"]);
+      await vi.advanceTimersByTimeAsync(2000);
+      const dropdown = document.getElementById("snoozeDropdown");
+      expect(dropdown).not.toBeNull();
+      const label = (value: string) =>
+        dropdown!
+          .querySelector(`.snooze-option[data-value="${value}"]`)!
+          .textContent!.trim();
+
+      // Instant presets share one target time across all tasks
+      expect(label("3hr")).toBe("3 hours (12:00)");
+      // Day presets differ per task — generic label
+      expect(label("1day")).toBe("1 day (same time)");
+      expect(label("7day")).toBe("7 days (same time)");
+    } finally {
+      document.getElementById("snoozeDropdown")?.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it("day preset weekday follows the Joplin locale sent via updateTasks", async () => {
+    // timeFormat pinned so the test is independent of earlier module state
+    sendUpdateTasks([t1], { locale: "de_DE", timeFormat: "HH:mm" });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 18, 9, 0, 0)); // local 09:00
+    try {
+      (
+        document.querySelector(
+          '.action-btn[data-action="snooze"]',
+        ) as HTMLElement
+      ).click();
+      // fetchSettings resolves via its 2s timeout (no settingsUpdated arrives)
+      await vi.advanceTimersByTimeAsync(2000);
+      const dropdown = document.getElementById("snoozeDropdown");
+      expect(dropdown).not.toBeNull();
+      const label = (value: string) =>
+        dropdown!
+          .querySelector(`.snooze-option[data-value="${value}"]`)!
+          .textContent!.trim();
+
+      const d = new Date(t1.todo_due);
+      const dueTime = `${d.getHours().toString().padStart(2, "0")}:${d
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`;
+      // de_DE → German weekday
+      expect(label("1day")).toBe(`1 day (19. ${dueTime} Samstag)`);
+      expect(label("7day")).toBe(`7 days (25. ${dueTime} Freitag)`);
+    } finally {
+      document.getElementById("snoozeDropdown")?.remove();
+      vi.useRealTimers();
+    }
+  });
 });

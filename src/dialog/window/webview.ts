@@ -6,6 +6,13 @@ import type {
   SnoozePreset,
   PluginToWindowMessage,
 } from "../../types";
+import {
+  dateTimeTokens,
+  replaceTokens,
+  formatClockTime,
+  formatDayTarget,
+  presetTargetTime,
+} from "../../snoozeLabels";
 
 // Configured time for "Tomorrow at" snooze (updated via IPC)
 let snoozeUntilTomorrowHour: number = 9;
@@ -17,6 +24,7 @@ let lastCustomSnoozeDays: number | null = null;
 // Joplin date/time display formats (General settings, updated via IPC)
 let dateFormat: string = "DD/MM/YYYY";
 let timeFormat: string = "HH:mm";
+let locale: string = "en";
 
 // True after the first updateTasks arrives — until then the static
 // "Loading tasks..." state from the HTML stays visible
@@ -61,20 +69,9 @@ function formatRelativeTime(timestamp: number): string {
 // Format absolute due date & time using Joplin's date/time format settings
 // (moment-style tokens, e.g. "YYYY-MM-DD" + "HH:mm" -> "2026-05-01 12:00")
 function formatDateTime(timestamp: number): string {
-  const d = new Date(timestamp);
-  const tokens: Record<string, string> = {
-    YYYY: `${d.getFullYear()}`,
-    YY: `${d.getFullYear()}`.slice(-2),
-    MM: `${d.getMonth() + 1}`.padStart(2, "0"),
-    DD: `${d.getDate()}`.padStart(2, "0"),
-    HH: `${d.getHours()}`.padStart(2, "0"),
-    h: `${d.getHours() % 12 || 12}`,
-    mm: `${d.getMinutes()}`.padStart(2, "0"),
-    A: d.getHours() >= 12 ? "PM" : "AM",
-  };
-  return `${dateFormat} ${timeFormat}`.replace(
-    /YYYY|YY|MM|DD|HH|h|mm|A/g,
-    (m) => tokens[m] ?? m,
+  return replaceTokens(
+    `${dateFormat} ${timeFormat}`,
+    dateTimeTokens(new Date(timestamp)),
   );
 }
 
@@ -120,7 +117,7 @@ function renderTasks(tasks: Task[]) {
     .map((task) => {
       const urgencyClass = getUrgencyClass(task);
       return `
-			<div class="task-card ${urgencyClass}" data-task-id="${task.id}">
+			<div class="task-card ${urgencyClass}" data-task-id="${task.id}" data-due="${task.todo_due}">
 				<div class="task-info">
 					<div class="task-title" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</div>
 					<div class="task-time">Due: ${formatRelativeTime(task.todo_due)} (${formatDateTime(task.todo_due)})</div>
@@ -213,11 +210,18 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
     styleEl.id = "snoozeDropdownStyles";
     styleEl.textContent = `
 			.snooze-option {
+				display: flex;
+				gap: 8px;
 				padding: 6px 12px;
 				cursor: pointer;
 				border-radius: 6px;
 				transition: all 0.15s ease;
 				font-size: 13px;
+			}
+			/* Single tab stop: every preset's target time (instant and day) lines up in one column */
+			.snooze-option-name {
+				width: 112px;
+				flex-shrink: 0;
 			}
 			.snooze-option:hover {
 				background-color: #3498db;
@@ -244,20 +248,45 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
 		z-index: 1000;
 	`;
 
-  // Preset options
-  const presets: { label: string; value: SnoozePreset }[] = [
-    { label: "15 minutes", value: "15min" },
-    { label: "30 minutes", value: "30min" },
-    { label: "1 hour", value: "1hr" },
-    { label: "2 hours", value: "2hr" },
-    { label: "3 hours", value: "3hr" },
+  // Target date/time for each preset — mirrors
+  // ReminderManager.calculateSnoozeTime: instant presets are now + offset,
+  // day presets land on now + N days at the task's original clock time.
+  // In bulk mode there is no single task due time, so day presets keep
+  // the generic "(same time)".
+  let taskDue: number | null = null;
+  if (taskId) {
+    const dueAttr = document
+      .querySelector(`.task-card[data-task-id="${taskId}"]`)
+      ?.getAttribute("data-due");
+    const due = dueAttr ? parseInt(dueAttr, 10) : NaN;
+    if (Number.isFinite(due) && due > 0) taskDue = due;
+  }
+  const now = Date.now();
+  const instantTime = (preset: SnoozePreset): string | undefined => {
+    const ts = presetTargetTime(now, preset, taskDue);
+    return ts === null ? undefined : `(${formatClockTime(ts, timeFormat)})`;
+  };
+  const dayTime = (preset: SnoozePreset): string => {
+    const ts = presetTargetTime(now, preset, taskDue);
+    if (ts === null) return "(same time)";
+    return `(${formatDayTarget(ts, timeFormat, locale)})`;
+  };
+
+  // Preset options — name and target time in separate spans so the times
+  // line up in a column (tab-like spacing) across all rows
+  const presets: { name: string; time?: string; value: SnoozePreset }[] = [
+    { name: "15 minutes", time: instantTime("15min"), value: "15min" },
+    { name: "30 minutes", time: instantTime("30min"), value: "30min" },
+    { name: "1 hour", time: instantTime("1hr"), value: "1hr" },
+    { name: "2 hours", time: instantTime("2hr"), value: "2hr" },
+    { name: "3 hours", time: instantTime("3hr"), value: "3hr" },
     {
-      label: `Tomorrow at ${snoozeUntilTomorrowHour}:${snoozeUntilTomorrowMinute.toString().padStart(2, "0")}`,
+      name: `Tomorrow at ${snoozeUntilTomorrowHour}:${snoozeUntilTomorrowMinute.toString().padStart(2, "0")}`,
       value: "tomorrow",
     },
-    { label: "1 day (same time)", value: "1day" },
-    { label: "3 days (same time)", value: "3day" },
-    { label: "7 days (same time)", value: "7day" },
+    { name: "1 day", time: dayTime("1day"), value: "1day" },
+    { name: "3 days", time: dayTime("3day"), value: "3day" },
+    { name: "7 days", time: dayTime("7day"), value: "7day" },
   ];
 
   dropdown.innerHTML = `
@@ -266,9 +295,7 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
 			${presets
         .map(
           (preset) => `
-				<div class="snooze-option" data-value="${preset.value}">
-					${preset.label}
-				</div>
+				<div class="snooze-option" data-value="${preset.value}"><span class="snooze-option-name">${preset.name}</span> <span class="snooze-option-time">${preset.time ?? ""}</span></div>
 			`,
         )
         .join("")}
@@ -394,6 +421,9 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
       }
       if (typeof message.timeFormat === "string" && message.timeFormat) {
         timeFormat = message.timeFormat;
+      }
+      if (typeof message.locale === "string" && message.locale) {
+        locale = message.locale;
       }
       if ((window as any).setRefreshLoading) {
         (window as any).setRefreshLoading(false);

@@ -439,6 +439,10 @@ async function sendMobileTasks(tasks?: TaskList) {
   let showLookAhead = false;
   let snoozeUntilTomorrowHour = 9;
   let snoozeUntilTomorrowMinute = 0;
+  // Joplin built-in display formats (General settings)
+  let dateFormat = "DD/MM/YYYY";
+  let timeFormat = "HH:mm";
+  let locale = "en";
   try {
     const values = (await joplin.settings.values([
       "showLookAhead",
@@ -452,6 +456,14 @@ async function sendMobileTasks(tasks?: TaskList) {
     showLookAhead = Boolean(values.showLookAhead);
     snoozeUntilTomorrowHour = values.snoozeUntilTomorrowHour ?? 9;
     snoozeUntilTomorrowMinute = values.snoozeUntilTomorrowMinute ?? 0;
+    const globals = (await joplin.settings.globalValues([
+      "dateFormat",
+      "timeFormat",
+      "locale",
+    ])) as string[];
+    if (typeof globals[0] === "string" && globals[0]) dateFormat = globals[0];
+    if (typeof globals[1] === "string" && globals[1]) timeFormat = globals[1];
+    if (typeof globals[2] === "string" && globals[2]) locale = globals[2];
   } catch {
     /* defaults */
   }
@@ -463,6 +475,9 @@ async function sendMobileTasks(tasks?: TaskList) {
     snoozeUntilTomorrowHour,
     snoozeUntilTomorrowMinute,
     lastCustomSnoozeDays: reminderManager?.getLastCustomSnoozeDays() ?? null,
+    dateFormat,
+    timeFormat,
+    locale,
   });
 }
 

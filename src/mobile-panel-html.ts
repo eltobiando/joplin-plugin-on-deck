@@ -8,6 +8,10 @@ export const MOBILE_PANEL_HTML = `
 		background-color: var(--joplin-background-color, #f5f5f5);
 		color: var(--joplin-color, #333);
 	}
+	/* Lock page scroll while the snooze dropdown is open (see mobile-webview.ts) */
+	body.snooze-open {
+		overflow: hidden;
+	}
 	.panel-header {
 		padding: 14px 12px;
 		font-size: 16px;
@@ -161,6 +165,7 @@ export const MOBILE_PANEL_HTML = `
 		max-width: 320px;
 		max-height: 90vh;
 		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
 		z-index: 1000;
 	}
 	.snooze-title {
@@ -181,6 +186,15 @@ export const MOBILE_PANEL_HTML = `
 		min-height: 44px;
 		display: flex;
 		align-items: center;
+		gap: 8px;
+	}
+	/* Independent tab stops: instant presets vs. day presets (day names are shorter) */
+	.snooze-option-name {
+		width: 124px;
+		flex-shrink: 0;
+	}
+	.snooze-option-name--day {
+		width: 64px;
 	}
 	.snooze-option:active {
 		background-color: var(--joplin-color-accent, #3498db);
@@ -258,7 +272,7 @@ export const MOBILE_PANEL_HTML = `
 </div>
 <div class="panel-footer">
 	<button class="footer-btn" id="refreshBtn" title="Refresh"><span class="refresh-icon">&#8635;</span> Refresh</button>
-	<button class="footer-btn" id="lookAheadBtn" title="Toggle look-ahead">&#9696; Look Ahead</button>
+	<button class="footer-btn" id="lookAheadBtn" title="Toggle look-ahead">Look Ahead: OFF</button>
 	<button class="footer-btn" id="snoozeAllBtn">&#9201; Snooze All</button>
 </div>
 `;

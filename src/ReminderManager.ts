@@ -1,11 +1,6 @@
 import joplin from "api";
-import {
-  Task,
-  TaskList,
-  SnoozeOption,
-  SnoozePreset,
-  CustomSnooze,
-} from "./types";
+import { Task, TaskList, SnoozeOption, CustomSnooze } from "./types";
+import { INSTANT_PRESET_OFFSETS, DAY_PRESET_DAYS } from "./snoozeLabels";
 
 export class ReminderManager {
   private checkInterval: NodeJS.Timeout | null = null;
@@ -15,24 +10,6 @@ export class ReminderManager {
   private windowOpen = false;
   // In-memory only: survives window reopens, resets on Joplin restart
   private lastCustomSnoozeDays: number | null = null;
-
-  /** Instant snooze presets — offset from now. */
-  private static readonly INSTANT_PRESETS: Partial<
-    Record<SnoozePreset, number>
-  > = {
-    "15min": 15 * 60 * 1000,
-    "30min": 30 * 60 * 1000,
-    "1hr": 60 * 60 * 1000,
-    "2hr": 2 * 60 * 60 * 1000,
-    "3hr": 3 * 60 * 60 * 1000,
-  };
-
-  /** Day-based presets — add N days, preserving the original due time. */
-  private static readonly DAY_PRESETS: Partial<Record<SnoozePreset, number>> = {
-    "1day": 1,
-    "3day": 3,
-    "7day": 7,
-  };
 
   /**
    * Notify the manager whether the window is open.
@@ -268,12 +245,12 @@ export class ReminderManager {
       return now + snooze.value * unitMap[snooze.unit];
     }
 
-    const instantOffset = ReminderManager.INSTANT_PRESETS[snooze];
+    const instantOffset = INSTANT_PRESET_OFFSETS[snooze];
     if (instantOffset !== undefined) {
       return now + instantOffset;
     }
 
-    const daysToAdd = ReminderManager.DAY_PRESETS[snooze];
+    const daysToAdd = DAY_PRESET_DAYS[snooze];
     if (daysToAdd !== undefined) {
       return this.calculateDayBasedDue(now, daysToAdd, taskId);
     }
