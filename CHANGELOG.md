@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.16.0](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.15.1...v1.16.0) (2026-09-18)
+
+### Features
+
+- performance improvement - only search dated todos and stop pagination at the deadline ([a8aa5ed](https://github.com/eltobiando/joplin-plugin-on-deck/commit/a8aa5edc81bda337243ccd281e44b01db904514c))
+
 ## [1.15.1](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.15.0...v1.15.1) (2026-09-14)
 
 ### Bug Fixes
