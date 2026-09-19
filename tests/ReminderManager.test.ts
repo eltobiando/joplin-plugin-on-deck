@@ -46,6 +46,117 @@ describe("ReminderManager.snoozeTaskBulk", () => {
   });
 });
 
+describe("ReminderManager.fetchDueTasks full scan", () => {
+  beforeEach(() => {
+    joplinMock.settings.value = vi.fn(async (key: string) =>
+      key === "lookAheadDays" ? 7 : false,
+    );
+  });
+
+  it("scans all pages when the backend ignores order_by (page 1 not ascending)", async () => {
+    const now = Date.now();
+    const overdue1 = now - 3600000;
+    const overdue2 = now - 1800000;
+    const future = now + 3600000;
+    joplinMock.data.get = vi.fn(
+      async (_target: unknown, opts: { page: number }) => {
+        // Out of order: the first row is past the deadline, but due rows
+        // sit behind it (what Joplin mobile does)
+        if (opts.page === 1) {
+          return {
+            items: [
+              {
+                id: "f",
+                title: "Future",
+                todo_due: future,
+                is_conflict: 0,
+                deleted_time: 0,
+              },
+              {
+                id: "o1",
+                title: "Overdue 1",
+                todo_due: overdue1,
+                is_conflict: 0,
+                deleted_time: 0,
+              },
+            ],
+            has_more: true,
+          };
+        }
+        return {
+          items: [
+            {
+              id: "o2",
+              title: "Overdue 2",
+              todo_due: overdue2,
+              is_conflict: 0,
+              deleted_time: 0,
+            },
+          ],
+          has_more: false,
+        };
+      },
+    );
+
+    const result = await new ReminderManager().getDueTasks();
+
+    // Both due rows are found despite the past-deadline row at index 0
+    expect(result.tasks.map((t) => t.id).sort()).toEqual(["o1", "o2"]);
+    // Every page was fetched (the full scan makes no ordering assumption)
+    expect(joplinMock.data.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps scanning past a past-deadline row, even when the stream is ascending", async () => {
+    const now = Date.now();
+    joplinMock.data.get = vi.fn(
+      async (_target: unknown, opts: { page: number }) => {
+        // Ascending stream (what desktop returns) — page 1 already shows a
+        // past-deadline row, but the scan must not stop there
+        if (opts.page === 1) {
+          return {
+            items: [
+              {
+                id: "o1",
+                title: "Overdue",
+                todo_due: now - 3600000,
+                is_conflict: 0,
+                deleted_time: 0,
+              },
+              {
+                id: "f1",
+                title: "Future 1",
+                todo_due: now + 3600000,
+                is_conflict: 0,
+                deleted_time: 0,
+              },
+            ],
+            has_more: true,
+          };
+        }
+        return {
+          items: [
+            {
+              id: "f2",
+              title: "Future 2",
+              todo_due: now + 7200000,
+              is_conflict: 0,
+              deleted_time: 0,
+            },
+          ],
+          has_more: false,
+        };
+      },
+    );
+
+    const result = await new ReminderManager().getDueTasks();
+
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0].id).toBe("o1");
+    // No early stop — page 2 was fetched even though page 1 was ascending
+    expect(joplinMock.data.get).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("ReminderManager.checkForDueTasks skip optimization", () => {
   beforeEach(() => {
     joplinMock.data.put = vi.fn(async () => ({}));

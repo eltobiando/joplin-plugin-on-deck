@@ -84,8 +84,8 @@ describe("ReminderManager.getDueTasks", () => {
       "overdue-low",
     ]);
 
-    // The query narrows to dated todos and relies on server-side ordering
-    // for early termination
+    // The query narrows to dated todos; pagination is driven by has_more
+    // (single page here) — the scan makes no ordering assumption
     expect(joplinMock.data.get).toHaveBeenCalledTimes(1);
     const opts = joplinMock.data.get.mock.calls[0][1] as any;
     expect(opts.query).toBe("type:todo iscompleted:0 due:19700201");
@@ -132,20 +132,22 @@ describe("ReminderManager.getDueTasks", () => {
     ).toEqual([1, 2, 3]);
   });
 
-  it("stops paginating at the first row due after the deadline, even when more pages exist", async () => {
+  it("keeps paginating past a past-deadline row when has_more is set (no early stop)", async () => {
     stubSettings(false);
     joplinMock.data.get = vi.fn(async (_target: string[], opts: any) => ({
       items:
         opts?.page === 1
           ? [note("a", NOW - 2 * H), note("future", NOW + 2 * H)]
           : [note("beyond", NOW + 3 * H)],
-      // has_more stays true — the deadline must end the loop, not the server
-      has_more: true,
+      // Page 1 already shows a past-deadline row, but the scan must not
+      // stop there — only the server's has_more=false ends the loop
+      has_more: opts?.page === 1,
     }));
     const manager = new ReminderManager();
     const { tasks } = await manager.getDueTasks();
 
     expect(tasks.map((t) => t.id)).toEqual(["a"]);
-    expect(joplinMock.data.get).toHaveBeenCalledTimes(1); // page 2 never requested
+    // Page 2 was fetched even though page 1 was past the deadline
+    expect(joplinMock.data.get).toHaveBeenCalledTimes(2);
   });
 });
