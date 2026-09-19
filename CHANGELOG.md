@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.17.1](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.17.0...v1.17.1) (2026-09-19)
+
+### Bug Fixes
+
+- remove early-stop pagination that skipped due todos on mobile ([a47d2c3](https://github.com/eltobiando/joplin-plugin-on-deck/commit/a47d2c31ba3108f3e2b3d74df7b2cc0beb7b62f1))
+
 ## [1.17.0](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.16.0...v1.17.0) (2026-09-18)
 
 ### Features
