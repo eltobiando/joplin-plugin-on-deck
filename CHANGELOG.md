@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.17.2](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.17.1...v1.17.2) (2026-09-21)
+
+### Bug Fixes
+
+- ignore windowClosing messages from replaced windows ([54e7667](https://github.com/eltobiando/joplin-plugin-on-deck/commit/54e7667cfb6cdc67199c7f0c3b85085edb4ec11d))
+
 ## [1.17.1](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.17.0...v1.17.1) (2026-09-19)
 
 ### Bug Fixes
