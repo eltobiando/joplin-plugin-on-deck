@@ -236,6 +236,14 @@ export class ReminderWindow {
     }
 
     this.messageListener = async (event: MessageEvent) => {
+      // Ignore messages from a window that is no longer the current one.
+      // After a reopen(), the replaced window's 'windowClosing' message
+      // (fired by its beforeunload) is delivered only AFTER the new
+      // window's listener is installed; without this check it would
+      // remove the new listener and kill window→plugin communication
+      // (openNote, snooze, ...) for the replacement window.
+      if (event.source && this.win && event.source !== this.win) return;
+
       // webviewApi.postMessage wraps in { message: {...}, id: "..." }
       const message = event.data?.message as WindowToPluginMessage | undefined;
 

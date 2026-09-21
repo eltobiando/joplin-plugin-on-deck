@@ -47,9 +47,10 @@ const windowStub = {
   ),
 };
 
-// What the webview's webviewApi.postMessage would deliver to the listener
-function emitFromWebview(message: Record<string, unknown>) {
-  windowStub.listener?.({ data: { message } });
+// What the webview's webviewApi.postMessage would deliver to the listener.
+// `source` mimics MessageEvent.source (the sending window) when provided.
+function emitFromWebview(message: Record<string, unknown>, source?: unknown) {
+  windowStub.listener?.({ data: { message }, source } as { data: unknown });
 }
 
 // Yield to the microtask queue so the (never clock-advanced) open() promise
@@ -415,5 +416,83 @@ describe("ReminderWindow message handling, settings cache and position", () => {
     // The zero-dimension report must not reach the position callback
     expect(positions).toHaveLength(reportsBefore);
     expect(closingCalls).toBe(0);
+  });
+
+  it("a stale windowClosing from a replaced window does not kill the new window's listener", async () => {
+    // Regression: reopen() closes window #1 (its beforeunload fires
+    // 'windowClosing') and opens window #2. The stale message is delivered
+    // only AFTER #2's listener is installed, so without a source check it
+    // removes the new listener and all window→plugin messages are lost.
+    joplinMock.commands.execute = vi.fn(async () => undefined);
+    const winA = {
+      closed: false,
+      outerWidth: 715,
+      outerHeight: 520,
+      screenX: 10,
+      screenY: 20,
+      postMessage: vi.fn(),
+      close: () => {
+        winA.closed = true;
+      },
+    };
+    const winB = {
+      closed: false,
+      outerWidth: 715,
+      outerHeight: 520,
+      screenX: 10,
+      screenY: 20,
+      postMessage: vi.fn(),
+      close: () => {
+        winB.closed = true;
+      },
+    };
+    let opens = 0;
+    windowStub.open.mockImplementation(() => (opens++ === 0 ? winA : winB));
+
+    const positions: WindowPosition[] = [];
+    let closingCalls = 0;
+    const rw = new ReminderWindow(new ReminderManager());
+    rw.setPositionCallback((p) => positions.push(p));
+    rw.setWindowClosingCallback(() => {
+      closingCalls += 1;
+    });
+
+    // Window #1
+    await openWindow(rw);
+
+    // Reopen: #1 is closed (its beforeunload message is still in flight)
+    // and #2 is opened with a fresh listener
+    const reopenP = rw.reopen(false, taskList);
+    await drainMicrotasks();
+    emitFromWebview({ type: "ready" }, winB);
+    await vi.advanceTimersByTimeAsync(200);
+    await reopenP;
+
+    // The stale windowClosing from #1 now lands on #2's listener
+    const reportsBefore = positions.length;
+    emitFromWebview(
+      { type: "windowClosing", x: 10, y: 20, width: 715, height: 520 },
+      winA,
+    );
+    await drainMicrotasks();
+
+    // The listener must survive and the stale close must be a no-op
+    expect(windowStub.listener).not.toBeNull();
+    expect(closingCalls).toBe(0);
+    expect(positions).toHaveLength(reportsBefore);
+
+    // Window #2 communication is still alive
+    emitFromWebview({ type: "openNote", taskId: "tX" }, winB);
+    await drainMicrotasks();
+    expect(joplinMock.commands.execute).toHaveBeenCalledWith("openNote", "tX");
+
+    // A windowClosing from the CURRENT window is still handled
+    emitFromWebview(
+      { type: "windowClosing", x: 10, y: 20, width: 715, height: 520 },
+      winB,
+    );
+    await drainMicrotasks();
+    expect(windowStub.listener).toBeNull();
+    expect(closingCalls).toBe(1);
   });
 });
