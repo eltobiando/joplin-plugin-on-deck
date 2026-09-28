@@ -10,9 +10,10 @@ import type { Task } from "../src/types";
 
 const apiPost = vi.fn();
 let onMessageHandler: ((message: any) => void) | null = null;
-// Mock call history is cleared between tests, so the ready post made at
-// import time (beforeAll) is counted separately
+// Mock call history is cleared between tests, so the posts made at import
+// time (beforeAll) are counted separately
 let readyPosts = 0;
+let settingsRequestPosts = 0;
 
 const t1: Task = {
   id: "t1",
@@ -43,9 +44,13 @@ beforeAll(async () => {
   document.body.innerHTML = `
     <span id="taskCount" style="display: none">0</span>
     <div id="taskList">Loading tasks...</div>`;
+  const themeStyle = document.createElement("style");
+  themeStyle.id = "joplinThemeVars";
+  document.head.appendChild(themeStyle);
   (window as any).webviewApi = {
     postMessage: (message: any) => {
       if (message?.type === "ready") readyPosts += 1;
+      if (message?.type === "requestSettings") settingsRequestPosts += 1;
       apiPost(message);
     },
     onMessage: (fn: (message: any) => void) => {
@@ -224,6 +229,62 @@ describe("dialog/window/webview", () => {
     } finally {
       document.getElementById("snoozeDropdown")?.remove();
       vi.useRealTimers();
+    }
+  });
+
+  it("posts requestSettings on load so the theme applies before the first updateTasks", () => {
+    // The first updateTasks only arrives after the plugin's task fetch; the
+    // settings response (served from the cache) must come right after load
+    expect(settingsRequestPosts).toBeGreaterThanOrEqual(1);
+  });
+
+  it("applies the Joplin theme CSS block from settingsUpdated", () => {
+    const styleEl = document.getElementById("joplinThemeVars")!;
+    // Reset to the fresh-load state (earlier tests may have left a block)
+    styleEl.textContent = "";
+    const css =
+      ":root{--joplin-background-color:#1D2024;--joplin-color:#dddddd;}";
+    onMessageHandler?.({
+      type: "settingsUpdated",
+      snoozeUntilTomorrowHour: 9,
+      snoozeUntilTomorrowMinute: 0,
+      lastCustomSnoozeDays: null,
+      themeCss: css,
+    });
+    expect(styleEl.textContent).toBe(css);
+  });
+
+  it("applies the theme CSS block from updateTasks only when it changes", () => {
+    const styleEl = document.getElementById("joplinThemeVars")!;
+    // Reset to the fresh-load state (earlier tests may have left a block)
+    styleEl.textContent = "";
+    const dark =
+      ":root{--joplin-background-color:#1D2024;--joplin-color:#dddddd;}";
+
+    // Count setter calls by value — during this test the theme block is the
+    // only textContent written with these exact values (renderTasks writes
+    // titles, times and the count badge instead)
+    const setSpy = vi.spyOn(Node.prototype, "textContent", "set");
+    try {
+      const sets = (value: string) =>
+        setSpy.mock.calls.filter(([v]) => v === value).length;
+
+      sendUpdateTasks([t1], { themeCss: dark });
+      expect(styleEl.textContent).toBe(dark);
+      expect(sets(dark)).toBe(1);
+
+      // Re-sent unchanged (every 2-min cycle re-sends the same block):
+      // no redundant write, no style recalc
+      sendUpdateTasks([t1], { themeCss: dark });
+      expect(styleEl.textContent).toBe(dark);
+      expect(sets(dark)).toBe(1);
+
+      // Theme switched to light (empty block): applied
+      sendUpdateTasks([t1], { themeCss: "" });
+      expect(styleEl.textContent).toBe("");
+      expect(sets("")).toBe(1);
+    } finally {
+      setSpy.mockRestore();
     }
   });
 });

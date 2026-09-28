@@ -312,4 +312,32 @@ describe("mobile-webview", () => {
       vi.useRealTimers();
     }
   });
+
+  it("panel HTML only references CSS variables Joplin actually emits", async () => {
+    const { MOBILE_PANEL_HTML } = await import("../src/mobile-panel-html");
+    // Regression: the panel used to reference variables that Joplin never
+    // injects (they silently fell back to light-theme values, so the panel
+    // stayed light even in a dark Joplin theme)
+    const nonJoplinVars = [
+      "--joplin-panel-border-color",
+      "--joplin-color-danger",
+      "--joplin-color-warning",
+      "--joplin-color-success",
+      "--joplin-color-accent",
+      "--joplin-button-background-color",
+      "--joplin-button-active-background-color",
+      "--joplin-font-size",
+    ];
+    for (const v of nonJoplinVars) {
+      expect(
+        MOBILE_PANEL_HTML,
+        `${v} is not a Joplin theme variable`,
+      ).not.toContain(v);
+    }
+    // The real variables the theme switching relies on
+    expect(MOBILE_PANEL_HTML).toContain("var(--joplin-background-color3,");
+    expect(MOBILE_PANEL_HTML).toContain("var(--joplin-divider-color,");
+    expect(MOBILE_PANEL_HTML).toContain("var(--joplin-color-faded,");
+    expect(MOBILE_PANEL_HTML).toContain("var(--joplin-selected-color,");
+  });
 });

@@ -101,7 +101,13 @@ function resetStubs() {
   joplinMock.settings.value = vi.fn(async (key: string) =>
     key === "showLookAhead" ? false : key === "snoozeUntilTomorrowHour" ? 9 : 0,
   );
-  joplinMock.settings.globalValues = vi.fn(async () => ["DD/MM/YYYY", "HH:mm"]);
+  // dateFormat, timeFormat, locale, theme (light)
+  joplinMock.settings.globalValues = vi.fn(async () => [
+    "DD/MM/YYYY",
+    "HH:mm",
+    "en",
+    1,
+  ]);
   warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 }
 
@@ -260,6 +266,84 @@ describe("ReminderWindow message handling, settings cache and position", () => {
     });
   });
 
+  it("sends the Joplin theme CSS matching the active theme setting", async () => {
+    // Theme 2 = dark: the updateTasks payload must carry its :root block
+    joplinMock.settings.globalValues = vi.fn(async () => [
+      "DD/MM/YYYY",
+      "HH:mm",
+      "en",
+      2,
+    ]);
+    const rw = new ReminderWindow(new ReminderManager());
+    await openWindow(rw);
+
+    const last = winStub.postMessage.mock.calls.at(-1)![0] as {
+      message: any;
+    };
+    expect(last.message).toMatchObject({ type: "updateTasks" });
+    expect(last.message.themeCss).toContain(
+      "--joplin-background-color:#1D2024;",
+    );
+    expect(last.message.themeCss).toContain("--joplin-color:#dddddd;");
+
+    // A re-send within the TTL must carry the same block (cached, not
+    // re-read from Joplin)
+    const readsBefore = joplinMock.settings.globalValues.mock.calls.length;
+    await rw.sendTasks(taskList);
+    expect(joplinMock.settings.globalValues.mock.calls.length).toBe(
+      readsBefore,
+    );
+  });
+
+  it("sends no theme block when the theme setting is missing (light look)", async () => {
+    // The light theme keeps the window's original fixed values (the CSS
+    // var() fallbacks), so no --joplin-* block is shipped for it
+    joplinMock.settings.globalValues = vi.fn(async () => [
+      "DD/MM/YYYY",
+      "HH:mm",
+      "en",
+      undefined,
+    ]);
+    const rw = new ReminderWindow(new ReminderManager());
+    await openWindow(rw);
+
+    const last = winStub.postMessage.mock.calls.at(-1)![0] as {
+      message: any;
+    };
+    expect(last.message.themeCss).toBe("");
+  });
+
+  it("re-reads the theme on every open even within the settings cache TTL", async () => {
+    // Joplin exposes no theme-change event: the user switches the theme and
+    // re-opens the window, so open() must not serve the cached (stale)
+    // theme block
+    let themeId = 1;
+    joplinMock.settings.globalValues = vi.fn(async () => [
+      "DD/MM/YYYY",
+      "HH:mm",
+      "en",
+      themeId,
+    ]);
+    const rw = new ReminderWindow(new ReminderManager());
+    await openWindow(rw);
+    let last = winStub.postMessage.mock.calls.at(-1)![0] as {
+      message: any;
+    };
+    // Light theme ships no block (its original values are the CSS fallbacks)
+    expect(last.message.themeCss).toBe("");
+
+    // Theme switched to dark, window closed and re-opened well within the 30s TTL
+    themeId = 2;
+    await rw.close();
+    winStub.closed = false;
+    winStub.postMessage.mockClear();
+    await openWindow(rw);
+    last = winStub.postMessage.mock.calls.at(-1)![0] as { message: any };
+    expect(last.message.themeCss).toContain(
+      "--joplin-background-color:#1D2024;",
+    );
+  });
+
   it("toggleLookAhead flips the setting, invalidates the cache, and sends the new flag", async () => {
     let stored = false;
     joplinMock.settings.value = vi.fn(async (key: string) =>
@@ -331,6 +415,13 @@ describe("ReminderWindow message handling, settings cache and position", () => {
     );
     joplinMock.data.put = vi.fn(async () => ({}));
     joplinMock.commands.execute = vi.fn(async () => undefined);
+    // Theme 2 (dark): the settingsUpdated reply must carry the theme block
+    joplinMock.settings.globalValues = vi.fn(async () => [
+      "DD/MM/YYYY",
+      "HH:mm",
+      "en",
+      2,
+    ]);
 
     const rw = new ReminderWindow(new ReminderManager());
     await openWindow(rw);
@@ -370,6 +461,11 @@ describe("ReminderWindow message handling, settings cache and position", () => {
       snoozeUntilTomorrowMinute: 0,
       lastCustomSnoozeDays: null,
     });
+    // The reply carries the active theme so the window can apply it before
+    // the first updateTasks arrives (which waits for the task fetch)
+    expect(settingsPost.message.themeCss).toContain(
+      "--joplin-background-color:#1D2024;",
+    );
   });
 
   it("windowClosing saves the reported position and detaches the listener", async () => {

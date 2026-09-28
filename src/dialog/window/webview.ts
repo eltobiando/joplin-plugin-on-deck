@@ -239,9 +239,9 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
 		top: 50%;
 		left: 50%;
 		transform: translate(-50%, -50%);
-		background: white;
-		border: 1px solid #ccc;
-		box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+		background: var(--joplin-background-color, white);
+		border: 1px solid var(--joplin-divider-color, #ccc);
+		box-shadow: 0 4px 20px var(--joplin-shadow-color, rgba(0,0,0,0.3));
 		border-radius: 8px;
 		padding: 16px;
 		min-width: 220px;
@@ -290,7 +290,7 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
   ];
 
   dropdown.innerHTML = `
-		<div style="font-weight: 600; margin-bottom: 8px; color: #333; font-size: 14px;">Snooze for${countLabel}</div>
+		<div style="font-weight: 600; margin-bottom: 8px; color: var(--joplin-color, #333); font-size: 14px;">Snooze for${countLabel}</div>
 		<div style="display: flex; flex-direction: column; gap: 4px;">
 			${presets
         .map(
@@ -300,13 +300,13 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
         )
         .join("")}
 		</div>
-		<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee;">
-			<div style="font-size: 12px; color: #666; margin-bottom: 8px;">Custom</div>
+		<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--joplin-divider-color, #eee);">
+			<div style="font-size: 12px; color: var(--joplin-color-faded, #666); margin-bottom: 8px;">Custom</div>
 			<div style="display: flex; gap: 6px; align-items: center;">
 				<input type="number" id="customSnoozeValue" min="1" value="${lastCustomSnoozeDays ?? 1}"
-					style="width: 60px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; text-align: center;" />
+					style="width: 60px; padding: 6px 8px; border: 1px solid var(--joplin-divider-color, #ddd); border-radius: 4px; font-size: 13px; text-align: center; background: var(--joplin-background-color, white); color: var(--joplin-color, #333);" />
 				<select id="customSnoozeUnit"
-					style="flex: 1; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background: white;">
+					style="flex: 1; padding: 6px 8px; border: 1px solid var(--joplin-divider-color, #ddd); border-radius: 4px; font-size: 13px; background: var(--joplin-background-color, white); color: var(--joplin-color, #333);">
 					<option value="days">days</option>
 					<option value="hours">hours</option>
 					<option value="minutes">minutes</option>
@@ -316,7 +316,7 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
 			</div>
 		</div>
 		<div style="margin-top: 12px;">
-			<button class="cancel-btn" style="width: 100%; padding: 10px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 13px;">Cancel</button>
+			<button class="cancel-btn" style="width: 100%; padding: 10px; background: var(--joplin-background-color3, #f5f5f5); border: 1px solid var(--joplin-divider-color, #ddd); border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--joplin-color, #333);">Cancel</button>
 		</div>
 	`;
 
@@ -401,11 +401,21 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
 // Expose globally so window.ts can call it for the snooze-all button
 (window as any).showSnoozeDropdown = showSnoozeDropdown;
 
+// Apply the active Joplin theme's :root block. This window is a separate
+// document and never receives Joplin's own variables. No-op when the block
+// is unchanged — updateTasks re-sends it every 2-min cycle and re-assigning
+// a <style>'s textContent would trigger a pointless style recalc
+function applyThemeCss(css: string) {
+  const styleEl = document.getElementById("joplinThemeVars");
+  if (styleEl && styleEl.textContent !== css) styleEl.textContent = css;
+}
+
 // Listen for messages from plugin
 (window as any).webviewApi.onMessage((message: PluginToWindowMessage) => {
   switch (message.type) {
     case "updateTasks": {
       hasLoaded = true;
+      if (typeof message.themeCss === "string") applyThemeCss(message.themeCss);
       const tasks: TaskList = message.tasks;
       if (typeof message.snoozeUntilTomorrowHour === "number") {
         snoozeUntilTomorrowHour = message.snoozeUntilTomorrowHour;
@@ -436,6 +446,9 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
       break;
     }
     case "settingsUpdated":
+      // Also carries the theme block: the load-time request arrives before
+      // the first updateTasks, so this themes the loading placeholder early
+      if (typeof message.themeCss === "string") applyThemeCss(message.themeCss);
       if (typeof message.snoozeUntilTomorrowHour === "number") {
         snoozeUntilTomorrowHour = message.snoozeUntilTomorrowHour;
       }
@@ -454,3 +467,9 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
 
 // Signal ready to plugin
 (window as any).webviewApi.postMessage({ type: "ready" });
+
+// Request settings right away as well: the first updateTasks only arrives
+// after the plugin's task fetch, while the settings response is served from
+// its cache — this applies the theme (and date formats) to the loading
+// placeholder before the first tasks render
+(window as any).webviewApi.postMessage({ type: "requestSettings" });

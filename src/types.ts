@@ -53,12 +53,20 @@ export type PluginToWindowMessage =
       dateFormat?: string;
       timeFormat?: string;
       locale?: string;
+      // `:root { --joplin-*: ... }` block for the active Joplin theme;
+      // empty for the light theme, which keeps its original fixed values
+      themeCss?: string;
     }
   | {
       type: "settingsUpdated";
       snoozeUntilTomorrowHour: number;
       snoozeUntilTomorrowMinute: number;
       lastCustomSnoozeDays: number | null;
+      // Desktop only: the window requests settings right after "ready", so
+      // its theme is applied before the first updateTasks (which waits for
+      // the task fetch). The mobile panel gets Joplin's variables injected
+      // and omits the field
+      themeCss?: string;
     };
 
 // Messages from window to plugin

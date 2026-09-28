@@ -8,6 +8,7 @@ import {
   WindowPosition,
 } from "./types";
 import { ReminderManager } from "./ReminderManager";
+import { JOPLIN_THEME_IDS, themeCssForId } from "./themes";
 
 export const DEFAULT_WINDOW_WIDTH = 715;
 export const DEFAULT_WINDOW_HEIGHT = 520;
@@ -27,6 +28,9 @@ export class ReminderWindow {
     dateFormat: string;
     timeFormat: string;
     locale: string;
+    // :root CSS block for the active Joplin theme — the standalone window
+    // is a separate document and never receives Joplin's own variables
+    themeCss: string;
     cachedAt: number;
   } | null = null;
   private readonly SETTINGS_TTL_MS = 30 * 1000; // 30 seconds
@@ -149,6 +153,12 @@ export class ReminderWindow {
     initialTasks?: TaskList,
   ): Promise<TaskList | undefined> {
     if (await this.isOpen()) return undefined;
+
+    // Invalidate the settings cache so a (re)opened window always receives
+    // the current theme — Joplin exposes no theme-change event to plugins,
+    // so a theme switched after the last open would otherwise stay stale
+    // for up to the 30s TTL (the user re-opens the window after switching)
+    this.settingsCache = null;
 
     try {
       const installationDir = await joplin.plugins.installationDir();
@@ -357,6 +367,10 @@ export class ReminderWindow {
     let dateFormat = "DD/MM/YYYY";
     let timeFormat = "HH:mm";
     let locale = "en";
+    // Light ships no block (empty string): the window CSS keeps its
+    // original hand-picked light values, which the var() fallbacks apply
+    // whenever no --joplin-* variable is defined
+    let themeCss = themeCssForId(JOPLIN_THEME_IDS.light);
     try {
       showLookAhead = (await joplin.settings.value("showLookAhead")) as boolean;
       snoozeUntilTomorrowHour =
@@ -370,10 +384,14 @@ export class ReminderWindow {
         "dateFormat",
         "timeFormat",
         "locale",
-      ])) as string[];
+        "theme",
+      ])) as (string | number)[];
       if (typeof globals[0] === "string" && globals[0]) dateFormat = globals[0];
       if (typeof globals[1] === "string" && globals[1]) timeFormat = globals[1];
       if (typeof globals[2] === "string" && globals[2]) locale = globals[2];
+      // The global "theme" setting always holds the effective theme ID
+      // (auto-detect rewrites it), so a single read tracks theme switches
+      themeCss = themeCssForId(globals[3]);
     } catch {
       // defaults
     }
@@ -384,6 +402,7 @@ export class ReminderWindow {
       dateFormat,
       timeFormat,
       locale,
+      themeCss,
       cachedAt: now,
     };
     return this.settingsCache;
@@ -407,6 +426,7 @@ export class ReminderWindow {
       dateFormat: settings.dateFormat,
       timeFormat: settings.timeFormat,
       locale: settings.locale,
+      themeCss: settings.themeCss,
     };
 
     try {
@@ -492,6 +512,10 @@ export class ReminderWindow {
       snoozeUntilTomorrowHour: settings.snoozeUntilTomorrowHour,
       snoozeUntilTomorrowMinute: settings.snoozeUntilTomorrowMinute,
       lastCustomSnoozeDays: this.reminderManager.getLastCustomSnoozeDays(),
+      // The window asks right after "ready", so this themes its loading
+      // state before the first updateTasks arrives (which waits for the
+      // task fetch)
+      themeCss: settings.themeCss,
     };
 
     this.win.postMessage({ message }, "*");
