@@ -25,6 +25,7 @@ export class ReminderWindow {
     showLookAhead: boolean;
     snoozeUntilTomorrowHour: number;
     snoozeUntilTomorrowMinute: number;
+    snoozeTimeSmoothing: boolean;
     dateFormat: string;
     timeFormat: string;
     locale: string;
@@ -363,6 +364,7 @@ export class ReminderWindow {
     let showLookAhead = false;
     let snoozeUntilTomorrowHour = 9;
     let snoozeUntilTomorrowMinute = 0;
+    let snoozeTimeSmoothing = false;
     // Joplin built-in display formats (General settings)
     let dateFormat = "DD/MM/YYYY";
     let timeFormat = "HH:mm";
@@ -380,6 +382,9 @@ export class ReminderWindow {
         ((await joplin.settings.value(
           "snoozeUntilTomorrowMinute",
         )) as number) ?? 0;
+      snoozeTimeSmoothing = Boolean(
+        await joplin.settings.value("snoozeTimeSmoothing"),
+      );
       const globals = (await joplin.settings.globalValues([
         "dateFormat",
         "timeFormat",
@@ -399,6 +404,7 @@ export class ReminderWindow {
       showLookAhead,
       snoozeUntilTomorrowHour,
       snoozeUntilTomorrowMinute,
+      snoozeTimeSmoothing,
       dateFormat,
       timeFormat,
       locale,
@@ -422,6 +428,7 @@ export class ReminderWindow {
       showLookAhead: settings.showLookAhead,
       snoozeUntilTomorrowHour: settings.snoozeUntilTomorrowHour,
       snoozeUntilTomorrowMinute: settings.snoozeUntilTomorrowMinute,
+      snoozeTimeSmoothing: settings.snoozeTimeSmoothing,
       lastCustomSnoozeDays: this.reminderManager.getLastCustomSnoozeDays(),
       dateFormat: settings.dateFormat,
       timeFormat: settings.timeFormat,
@@ -511,6 +518,7 @@ export class ReminderWindow {
       type: "settingsUpdated",
       snoozeUntilTomorrowHour: settings.snoozeUntilTomorrowHour,
       snoozeUntilTomorrowMinute: settings.snoozeUntilTomorrowMinute,
+      snoozeTimeSmoothing: settings.snoozeTimeSmoothing,
       lastCustomSnoozeDays: this.reminderManager.getLastCustomSnoozeDays(),
       // The window asks right after "ready", so this themes its loading
       // state before the first updateTasks arrives (which waits for the

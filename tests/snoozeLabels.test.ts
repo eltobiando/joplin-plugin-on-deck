@@ -9,6 +9,7 @@ import {
   formatDayTarget,
   presetTargetTime,
   weekdayName,
+  roundUpToSlot,
 } from "../src/snoozeLabels";
 
 // Deterministic reference: local 2026-09-18 09:00 (a Friday)
@@ -123,6 +124,48 @@ describe("snoozeLabels", () => {
 
     it('"tomorrow" is null (its configured hour:minute is shown in the name)', () => {
       expect(presetTargetTime(NOW, "tomorrow", NOW)).toBeNull();
+    });
+  });
+
+  describe("roundUpToSlot", () => {
+    // Local wall-clock reference (Saturday 2026-05-30)
+    const at = (h: number, m: number, s = 0, ms = 0) =>
+      new Date(2026, 4, 30, h, m, s, ms).getTime();
+
+    it("rounds a mid-slot time up to the next 15-minute slot", () => {
+      expect(roundUpToSlot(at(14, 7))).toBe(at(14, 15));
+      expect(roundUpToSlot(at(14, 16))).toBe(at(14, 30));
+      expect(roundUpToSlot(at(14, 44, 59))).toBe(at(14, 45));
+    });
+
+    it("keeps a time that is exactly on a slot (ceiling semantics)", () => {
+      expect(roundUpToSlot(at(14, 15))).toBe(at(14, 15));
+      expect(roundUpToSlot(at(14, 45))).toBe(at(14, 45));
+      expect(roundUpToSlot(at(0, 0))).toBe(at(0, 0));
+    });
+
+    it("treats sub-second times on a slot minute as passed (pushes to the next slot)", () => {
+      expect(roundUpToSlot(at(14, 15, 0, 500))).toBe(at(14, 30));
+      expect(roundUpToSlot(at(14, 15, 5))).toBe(at(14, 30));
+    });
+
+    it("carries into the next hour at :59", () => {
+      expect(roundUpToSlot(at(14, 59, 59))).toBe(at(15, 0));
+    });
+
+    it("honors a custom slot size", () => {
+      expect(roundUpToSlot(at(14, 20), 30)).toBe(at(14, 30));
+      expect(roundUpToSlot(at(14, 45), 30)).toBe(at(15, 0));
+      expect(roundUpToSlot(at(14, 30), 30)).toBe(at(14, 30));
+    });
+
+    it("never moves the time backwards and never more than one slot", () => {
+      for (let m = 0; m < 60; m++) {
+        const ts = at(14, m);
+        const next = roundUpToSlot(ts);
+        expect(next).toBeGreaterThanOrEqual(ts);
+        expect(next - ts).toBeLessThan(15 * 60 * 1000);
+      }
     });
   });
 });

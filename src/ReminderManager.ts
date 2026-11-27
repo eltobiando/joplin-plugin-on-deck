@@ -1,6 +1,10 @@
 import joplin from "api";
 import { Task, TaskList, SnoozeOption, CustomSnooze } from "./types";
-import { INSTANT_PRESET_OFFSETS, DAY_PRESET_DAYS } from "./snoozeLabels";
+import {
+  INSTANT_PRESET_OFFSETS,
+  DAY_PRESET_DAYS,
+  roundUpToSlot,
+} from "./snoozeLabels";
 
 export class ReminderManager {
   private checkInterval: NodeJS.Timeout | null = null;
@@ -222,6 +226,9 @@ export class ReminderManager {
   /**
    * Calculate the new due time for a snooze option.
    * Day-based presets and custom day values preserve the original due time.
+   * With "snooze time smoothing" enabled, relative targets (instant presets
+   * and custom minutes/hours) are rounded up to the next 15-minute slot —
+   * day-based and "tomorrow" targets keep the explicitly chosen time.
    * @param snooze - The snooze preset or custom option
    * @param taskId - The task ID (needed to preserve the original due time)
    */
@@ -230,6 +237,9 @@ export class ReminderManager {
     taskId: string,
   ): Promise<number> {
     const now = Date.now();
+    const smooth = await this.isSnoozeTimeSmoothingEnabled();
+    const smoothTime = (ts: number): number =>
+      smooth ? roundUpToSlot(ts) : ts;
 
     if (typeof snooze !== "string") {
       // Custom snooze — days unit preserves the original due time
@@ -241,12 +251,12 @@ export class ReminderManager {
         hours: 60 * 60 * 1000,
         days: 24 * 60 * 60 * 1000,
       };
-      return now + snooze.value * unitMap[snooze.unit];
+      return smoothTime(now + snooze.value * unitMap[snooze.unit]);
     }
 
     const instantOffset = INSTANT_PRESET_OFFSETS[snooze];
     if (instantOffset !== undefined) {
-      return now + instantOffset;
+      return smoothTime(now + instantOffset);
     }
 
     const daysToAdd = DAY_PRESET_DAYS[snooze];
@@ -278,6 +288,18 @@ export class ReminderManager {
       newDue.setHours(original.getHours(), original.getMinutes(), 0, 0);
     }
     return newDue.getTime();
+  }
+
+  /**
+   * Whether "snooze time smoothing" is enabled — relative snooze targets are
+   * rounded up to the next 15-minute slot. Defaults to off.
+   */
+  private async isSnoozeTimeSmoothingEnabled(): Promise<boolean> {
+    try {
+      return Boolean(await joplin.settings.value("snoozeTimeSmoothing"));
+    } catch {
+      return false;
+    }
   }
 
   /**

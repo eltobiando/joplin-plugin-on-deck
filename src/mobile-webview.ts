@@ -13,6 +13,7 @@ import {
   formatDayTarget,
   presetTargetTime,
   replaceTokens,
+  roundUpToSlot,
 } from "./snoozeLabels";
 
 declare const webviewApi: {
@@ -25,6 +26,9 @@ let mRefreshLoadingTimeout: ReturnType<typeof setTimeout> | null = null;
 
 let mSnoozeHour: number = 9;
 let mSnoozeMinute: number = 0;
+// "Snooze time smoothing" — relative previews are rounded to 15-min slots
+// (updated via IPC)
+let mSnoozeTimeSmoothing: boolean = false;
 // Last custom snooze day count used in this session (updated via IPC, not persisted)
 let mLastCustomSnoozeDays: number | null = null;
 let mPendingSettings: Promise<void> | null = null;
@@ -238,7 +242,13 @@ function mShowSnooze(taskId: string | null, taskIds?: string[]) {
     const now = Date.now();
     const instantTime = (preset: SnoozePreset): string | undefined => {
       const ts = presetTargetTime(now, preset, taskDue);
-      return ts === null ? undefined : `(${formatClockTime(ts, mTimeFormat)})`;
+      if (ts === null) {
+        return undefined;
+      }
+      // With smoothing, the plugin rounds relative targets up to the next
+      // 15-minute slot — mirror that so the preview matches what is written
+      const target = mSnoozeTimeSmoothing ? roundUpToSlot(ts) : ts;
+      return `(${formatClockTime(target, mTimeFormat)})`;
     };
     const dayTime = (preset: SnoozePreset): string => {
       const ts = presetTargetTime(now, preset, taskDue);
@@ -397,6 +407,9 @@ webviewApi.onMessage((event: any) => {
     if (typeof message.snoozeUntilTomorrowMinute === "number") {
       mSnoozeMinute = message.snoozeUntilTomorrowMinute;
     }
+    if (typeof message.snoozeTimeSmoothing === "boolean") {
+      mSnoozeTimeSmoothing = message.snoozeTimeSmoothing;
+    }
     if (typeof message.lastCustomSnoozeDays === "number") {
       mLastCustomSnoozeDays = message.lastCustomSnoozeDays;
     }
@@ -418,6 +431,9 @@ webviewApi.onMessage((event: any) => {
     }
     if (typeof message.snoozeUntilTomorrowMinute === "number") {
       mSnoozeMinute = message.snoozeUntilTomorrowMinute;
+    }
+    if (typeof message.snoozeTimeSmoothing === "boolean") {
+      mSnoozeTimeSmoothing = message.snoozeTimeSmoothing;
     }
     if (typeof message.lastCustomSnoozeDays === "number") {
       mLastCustomSnoozeDays = message.lastCustomSnoozeDays;

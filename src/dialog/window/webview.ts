@@ -12,11 +12,15 @@ import {
   formatClockTime,
   formatDayTarget,
   presetTargetTime,
+  roundUpToSlot,
 } from "../../snoozeLabels";
 
 // Configured time for "Tomorrow at" snooze (updated via IPC)
 let snoozeUntilTomorrowHour: number = 9;
 let snoozeUntilTomorrowMinute: number = 0;
+// "Snooze time smoothing" — relative previews are rounded to 15-min slots
+// (updated via IPC)
+let snoozeTimeSmoothing: boolean = false;
 
 // Last custom snooze day count used in this session (updated via IPC, not persisted)
 let lastCustomSnoozeDays: number | null = null;
@@ -264,7 +268,13 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
   const now = Date.now();
   const instantTime = (preset: SnoozePreset): string | undefined => {
     const ts = presetTargetTime(now, preset, taskDue);
-    return ts === null ? undefined : `(${formatClockTime(ts, timeFormat)})`;
+    if (ts === null) {
+      return undefined;
+    }
+    // With smoothing, the plugin rounds relative targets up to the next
+    // 15-minute slot — mirror that so the preview matches what is written
+    const target = snoozeTimeSmoothing ? roundUpToSlot(ts) : ts;
+    return `(${formatClockTime(target, timeFormat)})`;
   };
   const dayTime = (preset: SnoozePreset): string => {
     const ts = presetTargetTime(now, preset, taskDue);
@@ -423,6 +433,9 @@ function applyThemeCss(css: string) {
       if (typeof message.snoozeUntilTomorrowMinute === "number") {
         snoozeUntilTomorrowMinute = message.snoozeUntilTomorrowMinute;
       }
+      if (typeof message.snoozeTimeSmoothing === "boolean") {
+        snoozeTimeSmoothing = message.snoozeTimeSmoothing;
+      }
       if (typeof message.lastCustomSnoozeDays === "number") {
         lastCustomSnoozeDays = message.lastCustomSnoozeDays;
       }
@@ -454,6 +467,9 @@ function applyThemeCss(css: string) {
       }
       if (typeof message.snoozeUntilTomorrowMinute === "number") {
         snoozeUntilTomorrowMinute = message.snoozeUntilTomorrowMinute;
+      }
+      if (typeof message.snoozeTimeSmoothing === "boolean") {
+        snoozeTimeSmoothing = message.snoozeTimeSmoothing;
       }
       if (typeof message.lastCustomSnoozeDays === "number") {
         lastCustomSnoozeDays = message.lastCustomSnoozeDays;

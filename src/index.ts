@@ -100,6 +100,14 @@ async function registerSharedSettings() {
       section: "onDeckBehavior",
       label: 'Snooze "Tomorrow at" — minute (0–59)',
     },
+    snoozeTimeSmoothing: {
+      value: false,
+      type: SettingItemType.Bool,
+      public: true,
+      section: "onDeckBehavior",
+      label:
+        "Smooth snooze times: Round relative snooze targets up to the next 15-minute slot",
+    },
   });
 }
 
@@ -439,6 +447,7 @@ async function sendMobileTasks(tasks?: TaskList) {
   let showLookAhead = false;
   let snoozeUntilTomorrowHour = 9;
   let snoozeUntilTomorrowMinute = 0;
+  let snoozeTimeSmoothing = false;
   // Joplin built-in display formats (General settings)
   let dateFormat = "DD/MM/YYYY";
   let timeFormat = "HH:mm";
@@ -448,14 +457,17 @@ async function sendMobileTasks(tasks?: TaskList) {
       "showLookAhead",
       "snoozeUntilTomorrowHour",
       "snoozeUntilTomorrowMinute",
+      "snoozeTimeSmoothing",
     ])) as {
       showLookAhead: boolean | null;
       snoozeUntilTomorrowHour: number | null;
       snoozeUntilTomorrowMinute: number | null;
+      snoozeTimeSmoothing: boolean | null;
     };
     showLookAhead = Boolean(values.showLookAhead);
     snoozeUntilTomorrowHour = values.snoozeUntilTomorrowHour ?? 9;
     snoozeUntilTomorrowMinute = values.snoozeUntilTomorrowMinute ?? 0;
+    snoozeTimeSmoothing = Boolean(values.snoozeTimeSmoothing);
     const globals = (await joplin.settings.globalValues([
       "dateFormat",
       "timeFormat",
@@ -474,6 +486,7 @@ async function sendMobileTasks(tasks?: TaskList) {
     showLookAhead,
     snoozeUntilTomorrowHour,
     snoozeUntilTomorrowMinute,
+    snoozeTimeSmoothing,
     lastCustomSnoozeDays: reminderManager?.getLastCustomSnoozeDays() ?? null,
     dateFormat,
     timeFormat,
@@ -486,13 +499,20 @@ async function sendMobileSettings() {
 
   let snoozeUntilTomorrowHour = 9;
   let snoozeUntilTomorrowMinute = 0;
+  let snoozeTimeSmoothing = false;
   try {
     const values = (await joplin.settings.values([
       "snoozeUntilTomorrowHour",
       "snoozeUntilTomorrowMinute",
-    ])) as Record<string, number | null>;
+      "snoozeTimeSmoothing",
+    ])) as {
+      snoozeUntilTomorrowHour: number | null;
+      snoozeUntilTomorrowMinute: number | null;
+      snoozeTimeSmoothing: boolean | null;
+    };
     snoozeUntilTomorrowHour = values.snoozeUntilTomorrowHour ?? 9;
     snoozeUntilTomorrowMinute = values.snoozeUntilTomorrowMinute ?? 0;
+    snoozeTimeSmoothing = Boolean(values.snoozeTimeSmoothing);
   } catch {
     /* defaults */
   }
@@ -501,6 +521,7 @@ async function sendMobileSettings() {
     type: "settingsUpdated",
     snoozeUntilTomorrowHour,
     snoozeUntilTomorrowMinute,
+    snoozeTimeSmoothing,
     lastCustomSnoozeDays: reminderManager?.getLastCustomSnoozeDays() ?? null,
   });
 }

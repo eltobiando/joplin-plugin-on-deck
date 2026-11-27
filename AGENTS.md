@@ -58,6 +58,7 @@ Messages are typed via `PluginToWindowMessage` and `WindowToPluginMessage` in `t
 - **Desktop is the leading view, mobile should follow it.** — the desktop standalone window is the primary reference for behavior, labels, and formatting. Implement changes there first, then mirror them in the mobile panel, unless a platform constraint prevents it
 - **Releases via `npm run release`** — `commit-and-tag-version` bumps `version` in `src/manifest.json` and `package.json` (feat → minor, fix → patch, breaking → major), updates `CHANGELOG.md`, commits `chore(release): X.Y.Z`, and tags `vX.Y.Z`. No manual per-commit version bumps. Run `npm run dist` after a release before shipping the `.jpl`
 - **Build before commit** — run `npm run dist` to produce `publish/joplin-plugin-on-deck.jpl`
+- **Review before commit** — the user reviews all changes before anything is committed. Never commit, tag, or run `npm run release` on your own initiative: leave the changes uncommitted in the working tree and wait for the user's go-ahead
 - **No React/Vue** — pure DOM manipulation with inline event handlers
 - **No strict mode** — `tsconfig.json` does not set `strict` (defaults to off, generator style)
 - **Target ES2017**, module CommonJS
@@ -105,3 +106,9 @@ Full API types are in `api/` (from generator-joplin).
 $HOME/Android/Sdk/platform-tools/adb devices     # verify emulator is connected
 $HOME/Android/Sdk/platform-tools/adb logcat      # view logs (filter with | grep On-Deck)
 ```
+
+## Code Style
+
+A few tiny code style details:
+
+Always use brackets {} with if statements. Even if it is just one line.

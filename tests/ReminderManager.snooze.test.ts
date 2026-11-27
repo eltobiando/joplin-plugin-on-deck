@@ -101,6 +101,117 @@ describe("ReminderManager.calculateSnoozeTime", () => {
   });
 });
 
+describe("ReminderManager.calculateSnoozeTime with snooze time smoothing", () => {
+  // Off-slot clock: Saturday, May 30, 2026, 10:07 (local)
+  const SMOOTH_NOW = new Date(2026, 4, 30, 10, 7, 0).getTime();
+
+  const withSmoothing = (enabled: boolean) => {
+    joplinMock.settings.value = vi.fn(async (key: string) =>
+      key === "snoozeTimeSmoothing" ? enabled : false,
+    );
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers({ now: SMOOTH_NOW });
+    joplinMock.settings.values = vi.fn(async () => ({
+      snoozeUntilTomorrowHour: 9,
+      snoozeUntilTomorrowMinute: 0,
+    }));
+    joplinMock.data.get = vi.fn(async (target: string[]) =>
+      target[0] === "notes"
+        ? { todo_due: ORIGINAL_DUE }
+        : { items: [], has_more: false },
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("is off by default: targets stay exactly now + offset", async () => {
+    // settings.value is the plain mock stub (undefined) — smoothing defaults off
+    const manager = new ReminderManager();
+    // 10:07 + 15min = 10:22, unrounded
+    expect(await manager.calculateSnoozeTime("15min", "t1")).toBe(
+      SMOOTH_NOW + 15 * 60 * 1000,
+    );
+  });
+
+  it("defaults to off when reading the setting fails", async () => {
+    joplinMock.settings.value = vi.fn(async () => {
+      throw new Error("no such setting");
+    });
+    const manager = new ReminderManager();
+    expect(await manager.calculateSnoozeTime("15min", "t1")).toBe(
+      SMOOTH_NOW + 15 * 60 * 1000,
+    );
+  });
+
+  it("rounds relative targets up to the next 15-minute slot when enabled", async () => {
+    withSmoothing(true);
+    const manager = new ReminderManager();
+    // 10:07 + 15min = 10:22 → 10:30
+    expect(await manager.calculateSnoozeTime("15min", "t1")).toBe(
+      new Date(2026, 4, 30, 10, 30).getTime(),
+    );
+    // 10:07 + 30min = 10:37 → 10:45
+    expect(await manager.calculateSnoozeTime("30min", "t1")).toBe(
+      new Date(2026, 4, 30, 10, 45).getTime(),
+    );
+    // 10:07 + 1hr = 11:07 → 11:15
+    expect(await manager.calculateSnoozeTime("1hr", "t1")).toBe(
+      new Date(2026, 4, 30, 11, 15).getTime(),
+    );
+    // Custom 20min: 10:27 → 10:30
+    expect(
+      await manager.calculateSnoozeTime({ value: 20, unit: "minutes" }, "t1"),
+    ).toBe(new Date(2026, 4, 30, 10, 30).getTime());
+    // Custom 2hr: 12:07 → 12:15
+    expect(
+      await manager.calculateSnoozeTime({ value: 2, unit: "hours" }, "t1"),
+    ).toBe(new Date(2026, 4, 30, 12, 15).getTime());
+  });
+
+  it("keeps a target that lands exactly on a slot (ceiling semantics)", async () => {
+    withSmoothing(true);
+    vi.setSystemTime(new Date(2026, 4, 30, 10, 0, 0).getTime());
+    const manager = new ReminderManager();
+    // 10:00 + 15min = exactly 10:15 → unchanged
+    expect(await manager.calculateSnoozeTime("15min", "t1")).toBe(
+      new Date(2026, 4, 30, 10, 15).getTime(),
+    );
+  });
+
+  it("never returns a target earlier than now + selected duration, and never more than one slot later", async () => {
+    withSmoothing(true);
+    const manager = new ReminderManager();
+    for (let m = 0; m < 60; m++) {
+      const now = new Date(2026, 4, 30, 10, m, 0).getTime();
+      vi.setSystemTime(now);
+      const result = await manager.calculateSnoozeTime("15min", "t1");
+      const lowerBound = now + 15 * 60 * 1000;
+      expect(result).toBeGreaterThanOrEqual(lowerBound);
+      expect(result - lowerBound).toBeLessThan(15 * 60 * 1000);
+    }
+  });
+
+  it("does not smooth day-based presets, custom days, or tomorrow", async () => {
+    withSmoothing(true);
+    const manager = new ReminderManager();
+    // Original due time 14:30 is off-slot — it must survive unrounded
+    expect(await manager.calculateSnoozeTime("1day", "t1")).toBe(
+      new Date(2026, 4, 31, 14, 30).getTime(),
+    );
+    expect(
+      await manager.calculateSnoozeTime({ value: 5, unit: "days" }, "t1"),
+    ).toBe(new Date(2026, 5, 4, 14, 30).getTime());
+    // "tomorrow" keeps the configured 9:00
+    expect(await manager.calculateSnoozeTime("tomorrow", "t1")).toBe(
+      new Date(2026, 4, 31, 9, 0).getTime(),
+    );
+  });
+});
+
 describe("ReminderManager.snoozeTask", () => {
   beforeEach(() => {
     vi.useFakeTimers({ now: FIXED });
@@ -133,6 +244,22 @@ describe("ReminderManager.snoozeTask", () => {
       todo_due: FIXED + 15 * 60 * 1000,
     });
     expect(refreshCount).toBe(1);
+  });
+
+  it("writes the smoothed due date when snooze time smoothing is enabled", async () => {
+    const now = new Date(2026, 4, 30, 10, 7, 0).getTime();
+    vi.useFakeTimers({ now });
+    joplinMock.settings.value = vi.fn(async (key: string) =>
+      key === "lookAheadDays" ? 7 : key === "snoozeTimeSmoothing",
+    );
+    const manager = new ReminderManager();
+
+    await manager.snoozeTask("t1", "15min");
+
+    // 10:07 + 15min = 10:22 → 10:30
+    expect(joplinMock.data.put).toHaveBeenCalledWith(["notes", "t1"], null, {
+      todo_due: new Date(2026, 4, 30, 10, 30).getTime(),
+    });
   });
 
   it("remembers custom day snoozes for the session but not other units", async () => {

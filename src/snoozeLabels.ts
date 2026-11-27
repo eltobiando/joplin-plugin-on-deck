@@ -124,3 +124,24 @@ export function presetTargetTime(
 
   return null; // "tomorrow"
 }
+
+/**
+ * Round a timestamp UP to the next 15-minute wall-clock slot (:00/:15/:30/
+ * :45), used when "snooze time smoothing" is enabled. A timestamp already
+ * exactly on a slot (no seconds/milliseconds) is returned unchanged (ceiling
+ * semantics). Works on local wall-clock time, so slots stay aligned across
+ * time zones and DST.
+ */
+export function roundUpToSlot(timestamp: number, slotMinutes = 15): number {
+  const d = new Date(timestamp);
+  const minutes = d.getMinutes();
+  if (
+    d.getSeconds() === 0 &&
+    d.getMilliseconds() === 0 &&
+    minutes % slotMinutes === 0
+  ) {
+    return timestamp;
+  }
+  d.setMinutes(minutes - (minutes % slotMinutes) + slotMinutes, 0, 0);
+  return d.getTime();
+}

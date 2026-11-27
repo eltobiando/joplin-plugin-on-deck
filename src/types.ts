@@ -49,6 +49,7 @@ export type PluginToWindowMessage =
       showLookAhead: boolean;
       snoozeUntilTomorrowHour: number;
       snoozeUntilTomorrowMinute: number;
+      snoozeTimeSmoothing: boolean;
       lastCustomSnoozeDays: number | null;
       dateFormat?: string;
       timeFormat?: string;
@@ -61,6 +62,7 @@ export type PluginToWindowMessage =
       type: "settingsUpdated";
       snoozeUntilTomorrowHour: number;
       snoozeUntilTomorrowMinute: number;
+      snoozeTimeSmoothing: boolean;
       lastCustomSnoozeDays: number | null;
       // Desktop only: the window requests settings right after "ready", so
       // its theme is applied before the first updateTasks (which waits for
