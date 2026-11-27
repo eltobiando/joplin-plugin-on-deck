@@ -28,7 +28,7 @@
     "commit-and-tag-version": "^13.2.0",
     "copy-webpack-plugin": "^14.0.0",
     "fs-extra": "^11.4.0",
-    "glob": "^13.0.6",
+    "glob": "^14.0.6",
     "husky": "^9.1.7",
     "jsdom": "^30.0.1",
     "lint-staged": "^17.5.1",
