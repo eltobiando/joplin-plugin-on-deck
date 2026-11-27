@@ -13,6 +13,7 @@ import {
   formatDayTarget,
   presetTargetTime,
   roundUpToSlot,
+  UNSMOOTHED_PRESETS,
 } from "../../snoozeLabels";
 
 // Configured time for "Tomorrow at" snooze (updated via IPC)
@@ -272,8 +273,10 @@ async function showSnoozeDropdown(taskId: string | null, taskIds?: string[]) {
       return undefined;
     }
     // With smoothing, the plugin rounds relative targets up to the next
-    // 15-minute slot — mirror that so the preview matches what is written
-    const target = snoozeTimeSmoothing ? roundUpToSlot(ts) : ts;
+    // 15-minute slot (except the exact 15/30-minute presets) — mirror that
+    // so the preview matches what is written
+    const smooth = snoozeTimeSmoothing && !UNSMOOTHED_PRESETS.has(preset);
+    const target = smooth ? roundUpToSlot(ts) : ts;
     return `(${formatClockTime(target, timeFormat)})`;
   };
   const dayTime = (preset: SnoozePreset): string => {

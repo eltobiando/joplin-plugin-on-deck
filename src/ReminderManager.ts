@@ -3,6 +3,7 @@ import { Task, TaskList, SnoozeOption, CustomSnooze } from "./types";
 import {
   INSTANT_PRESET_OFFSETS,
   DAY_PRESET_DAYS,
+  UNSMOOTHED_PRESETS,
   roundUpToSlot,
 } from "./snoozeLabels";
 
@@ -226,9 +227,10 @@ export class ReminderManager {
   /**
    * Calculate the new due time for a snooze option.
    * Day-based presets and custom day values preserve the original due time.
-   * With "snooze time smoothing" enabled, relative targets (instant presets
-   * and custom minutes/hours) are rounded up to the next 15-minute slot —
-   * day-based and "tomorrow" targets keep the explicitly chosen time.
+   * With "snooze time smoothing" enabled, hour-based relative targets
+   * (hourly instant presets and custom hours) are rounded up to the next
+   * 15-minute slot — minute-based targets (15/30-minute presets, custom
+   * minutes), day-based and "tomorrow" targets keep the exact time.
    * @param snooze - The snooze preset or custom option
    * @param taskId - The task ID (needed to preserve the original due time)
    */
@@ -246,6 +248,10 @@ export class ReminderManager {
       if (snooze.unit === "days") {
         return this.calculateDayBasedDue(now, snooze.value, taskId);
       }
+      // Minutes keep the exact time — only hour targets are smoothed
+      if (snooze.unit === "minutes") {
+        return now + snooze.value * 60 * 1000;
+      }
       const unitMap: Record<CustomSnooze["unit"], number> = {
         minutes: 60 * 1000,
         hours: 60 * 60 * 1000,
@@ -256,6 +262,10 @@ export class ReminderManager {
 
     const instantOffset = INSTANT_PRESET_OFFSETS[snooze];
     if (instantOffset !== undefined) {
+      // The short presets keep their exact time — see UNSMOOTHED_PRESETS
+      if (UNSMOOTHED_PRESETS.has(snooze)) {
+        return now + instantOffset;
+      }
       return smoothTime(now + instantOffset);
     }
 

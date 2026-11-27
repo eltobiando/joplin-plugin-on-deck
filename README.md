@@ -29,6 +29,6 @@ In Joplin settings under **On-Deck**:
 
 - **Show look-ahead tasks** - also show tasks due within the next **X days** (default 7).
 - **Snooze "Tomorrow at"** - the time used by the _tomorrow_ snooze option (default 09:00).
-- **Smooth snooze times** - round relative snooze targets (15 min / 30 min / 1–3 hr presets and custom minutes/hours) **up** to the next 15-minute wall-clock slot (`:00`/`:15`/`:30`/`:45`), so snoozed tasks come back on clean times (default off). Day-based and _tomorrow_ snoozes keep the explicitly chosen time.
+- **Smooth snooze times** - round hour-based snooze targets (1–3 hr presets and custom hours) **up** to the next 15-minute wall-clock slot (`:00`/`:15`/`:30`/`:45`), so snoozed tasks come back on clean times (default off). Minute-based targets (15/30-minute presets and custom minutes) always keep the exact time, and day-based and _tomorrow_ snoozes keep the explicitly chosen time.
 - **Bring notification window to foreground** (desktop) — focus the window when new due tasks appear.
 - **Hide notification window content** (desktop) — keep task content hidden while a notification is shown (default off).

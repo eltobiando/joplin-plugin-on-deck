@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import {
   INSTANT_PRESET_OFFSETS,
   DAY_PRESET_DAYS,
+  UNSMOOTHED_PRESETS,
   replaceTokens,
   formatClockTime,
   formatDayTarget,
@@ -33,6 +34,16 @@ describe("snoozeLabels", () => {
       expect(DAY_PRESET_DAYS["7day"]).toBe(7);
       expect(DAY_PRESET_DAYS["1hr"]).toBeUndefined();
       expect(DAY_PRESET_DAYS["tomorrow"]).toBeUndefined();
+    });
+
+    it("only the short presets are excluded from smoothing", () => {
+      expect(UNSMOOTHED_PRESETS.has("15min")).toBe(true);
+      expect(UNSMOOTHED_PRESETS.has("30min")).toBe(true);
+      expect(UNSMOOTHED_PRESETS.has("1hr")).toBe(false);
+      expect(UNSMOOTHED_PRESETS.has("2hr")).toBe(false);
+      expect(UNSMOOTHED_PRESETS.has("3hr")).toBe(false);
+      expect(UNSMOOTHED_PRESETS.has("tomorrow")).toBe(false);
+      expect(UNSMOOTHED_PRESETS.has("1day")).toBe(false);
     });
   });
 

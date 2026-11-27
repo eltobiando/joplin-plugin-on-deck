@@ -14,6 +14,7 @@ import {
   presetTargetTime,
   replaceTokens,
   roundUpToSlot,
+  UNSMOOTHED_PRESETS,
 } from "./snoozeLabels";
 
 declare const webviewApi: {
@@ -246,8 +247,10 @@ function mShowSnooze(taskId: string | null, taskIds?: string[]) {
         return undefined;
       }
       // With smoothing, the plugin rounds relative targets up to the next
-      // 15-minute slot — mirror that so the preview matches what is written
-      const target = mSnoozeTimeSmoothing ? roundUpToSlot(ts) : ts;
+      // 15-minute slot (except the exact 15/30-minute presets) — mirror
+      // that so the preview matches what is written
+      const smooth = mSnoozeTimeSmoothing && !UNSMOOTHED_PRESETS.has(preset);
+      const target = smooth ? roundUpToSlot(ts) : ts;
       return `(${formatClockTime(target, mTimeFormat)})`;
     };
     const dayTime = (preset: SnoozePreset): string => {

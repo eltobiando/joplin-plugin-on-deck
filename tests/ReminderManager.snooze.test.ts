@@ -147,38 +147,43 @@ describe("ReminderManager.calculateSnoozeTime with snooze time smoothing", () =>
     );
   });
 
-  it("rounds relative targets up to the next 15-minute slot when enabled", async () => {
+  it("rounds hour-based targets up to the next 15-minute slot when enabled", async () => {
     withSmoothing(true);
     const manager = new ReminderManager();
-    // 10:07 + 15min = 10:22 → 10:30
-    expect(await manager.calculateSnoozeTime("15min", "t1")).toBe(
-      new Date(2026, 4, 30, 10, 30).getTime(),
-    );
-    // 10:07 + 30min = 10:37 → 10:45
-    expect(await manager.calculateSnoozeTime("30min", "t1")).toBe(
-      new Date(2026, 4, 30, 10, 45).getTime(),
-    );
     // 10:07 + 1hr = 11:07 → 11:15
     expect(await manager.calculateSnoozeTime("1hr", "t1")).toBe(
       new Date(2026, 4, 30, 11, 15).getTime(),
     );
-    // Custom 20min: 10:27 → 10:30
-    expect(
-      await manager.calculateSnoozeTime({ value: 20, unit: "minutes" }, "t1"),
-    ).toBe(new Date(2026, 4, 30, 10, 30).getTime());
     // Custom 2hr: 12:07 → 12:15
     expect(
       await manager.calculateSnoozeTime({ value: 2, unit: "hours" }, "t1"),
     ).toBe(new Date(2026, 4, 30, 12, 15).getTime());
   });
 
+  it("keeps minute-based targets exact even when smoothing is enabled", async () => {
+    withSmoothing(true);
+    const manager = new ReminderManager();
+    // 10:07 + 15min = 10:22, unrounded
+    expect(await manager.calculateSnoozeTime("15min", "t1")).toBe(
+      SMOOTH_NOW + 15 * 60 * 1000,
+    );
+    // 10:07 + 30min = 10:37, unrounded
+    expect(await manager.calculateSnoozeTime("30min", "t1")).toBe(
+      SMOOTH_NOW + 30 * 60 * 1000,
+    );
+    // Custom 20min: 10:27, unrounded
+    expect(
+      await manager.calculateSnoozeTime({ value: 20, unit: "minutes" }, "t1"),
+    ).toBe(SMOOTH_NOW + 20 * 60 * 1000);
+  });
+
   it("keeps a target that lands exactly on a slot (ceiling semantics)", async () => {
     withSmoothing(true);
     vi.setSystemTime(new Date(2026, 4, 30, 10, 0, 0).getTime());
     const manager = new ReminderManager();
-    // 10:00 + 15min = exactly 10:15 → unchanged
-    expect(await manager.calculateSnoozeTime("15min", "t1")).toBe(
-      new Date(2026, 4, 30, 10, 15).getTime(),
+    // 10:00 + 1hr = exactly 11:00 → unchanged
+    expect(await manager.calculateSnoozeTime("1hr", "t1")).toBe(
+      new Date(2026, 4, 30, 11, 0).getTime(),
     );
   });
 
@@ -188,8 +193,8 @@ describe("ReminderManager.calculateSnoozeTime with snooze time smoothing", () =>
     for (let m = 0; m < 60; m++) {
       const now = new Date(2026, 4, 30, 10, m, 0).getTime();
       vi.setSystemTime(now);
-      const result = await manager.calculateSnoozeTime("15min", "t1");
-      const lowerBound = now + 15 * 60 * 1000;
+      const result = await manager.calculateSnoozeTime("1hr", "t1");
+      const lowerBound = now + 60 * 60 * 1000;
       expect(result).toBeGreaterThanOrEqual(lowerBound);
       expect(result - lowerBound).toBeLessThan(15 * 60 * 1000);
     }
@@ -254,11 +259,11 @@ describe("ReminderManager.snoozeTask", () => {
     );
     const manager = new ReminderManager();
 
-    await manager.snoozeTask("t1", "15min");
+    await manager.snoozeTask("t1", "1hr");
 
-    // 10:07 + 15min = 10:22 → 10:30
+    // 10:07 + 1hr = 11:07 → 11:15
     expect(joplinMock.data.put).toHaveBeenCalledWith(["notes", "t1"], null, {
-      todo_due: new Date(2026, 4, 30, 10, 30).getTime(),
+      todo_due: new Date(2026, 4, 30, 11, 15).getTime(),
     });
   });
 

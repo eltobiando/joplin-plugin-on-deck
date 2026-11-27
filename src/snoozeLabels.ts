@@ -19,6 +19,17 @@ export const DAY_PRESET_DAYS: Partial<Record<SnoozePreset, number>> = {
   "7day": 7,
 };
 
+/**
+ * Instant presets that keep their exact time even when "snooze time
+ * smoothing" is enabled. Smoothing only applies to hour-based targets —
+ * rounding a short (minute) snooze could push it up to a full slot later,
+ * nearly doubling the wait.
+ */
+export const UNSMOOTHED_PRESETS: ReadonlySet<SnoozePreset> = new Set([
+  "15min",
+  "30min",
+]);
+
 // English weekday names — the fallback for localized names when the runtime
 // cannot resolve the requested locale.
 const WEEKDAY_NAMES = [
