@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.18.1](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.18.0...v1.18.1) (2026-11-27)
+
 ## [1.18.0](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.17.2...v1.18.0) (2026-11-27)
 
 ### Features
