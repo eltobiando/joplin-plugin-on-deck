@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.18.0](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.17.2...v1.18.0) (2026-11-27)
+
+### Features
+
+- add optional snooze time smoothing to 15-minute slots ([a322db7](https://github.com/eltobiando/joplin-plugin-on-deck/commit/a322db7593ce58c67700441809be85e2343fba0f))
+- follow Joplin theme in reminder window and mobile panel ([0cad2ef](https://github.com/eltobiando/joplin-plugin-on-deck/commit/0cad2ef02270025433cca36a72588d4c815c6558))
+
 ## [1.17.2](https://github.com/eltobiando/joplin-plugin-on-deck/compare/v1.17.1...v1.17.2) (2026-09-21)
 
 ### Bug Fixes
